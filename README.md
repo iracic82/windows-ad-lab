@@ -293,13 +293,13 @@ resource "aws_vpc_security_group_ingress_rule" "dc_ldap_from_client_vpc" {
 }
 ```
 
-**Ansible:** No changes needed! It uses IPs from inventory regardless of VPC.
+**Ansible:** No changes needed. The playbook uses IPs from inventory regardless of VPC topology.
 
-#### Estimated Effort:
+#### Implementation Effort:
 
 - **Terraform refactor:** 2-3 hours (create vpc-peering module, update main.tf)
 - **Testing:** 1 hour
-- **Total:** Half day
+- **Total:** Approximately half day
 
 #### Real-World Use Case:
 
@@ -317,7 +317,7 @@ VPC-B (10.20.0.0/16) - Application Servers
 └── APP-SERVER-3 (10.20.1.12) ← domain-joined
 ```
 
-**Would you like me to implement multi-VPC support?** It's straightforward and would make this even more production-ready.
+**Note:** Multi-VPC support can be implemented by adding the vpc-peering module and updating security group rules to use CIDR blocks. See `docs/MULTI_VPC_IMPLEMENTATION.md` and `docs/MULTI_VPC_EXISTING_PEERING.md` for detailed implementation guides.
 
 ---
 
@@ -422,10 +422,10 @@ Deployment successful when:
 
 ## 🤝 Contributing
 
-Found a bug or want to contribute?
-1. Fork the repo
-2. Create feature branch
-3. Submit PR with tests
+**Contributions are welcome:**
+1. Fork the repository
+2. Create a feature branch
+3. Submit a pull request with tests
 
 ---
 
@@ -443,6 +443,6 @@ MIT License
 
 ---
 
-**Questions?** Open an issue or check the troubleshooting section.
+**Support:** For issues or questions, refer to the troubleshooting section or open a GitHub issue.
 
-**Want multi-VPC support?** Let me know - it's a half-day implementation!
+**Repository:** https://github.com/iracic82/windows-ad-lab
