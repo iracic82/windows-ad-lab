@@ -1,0 +1,74 @@
+# ===================================
+# Data Sources
+# ===================================
+
+# Get VPC information
+data "aws_vpc" "selected" {
+  id = var.vpc_id
+}
+
+# Get subnet information for DC1
+data "aws_subnet" "dc1" {
+  id = var.subnet_dc1
+}
+
+# Get subnet information for DC2
+data "aws_subnet" "dc2" {
+  id = var.subnet_dc2
+}
+
+# Get latest Windows Server 2025 AMI if not provided
+data "aws_ami" "windows_2025" {
+  most_recent = true
+  owners      = ["amazon"]
+
+  filter {
+    name   = "name"
+    values = ["Windows_Server-2025-English-Full-Base-*"]
+  }
+
+  filter {
+    name   = "platform"
+    values = ["windows"]
+  }
+
+  filter {
+    name   = "virtualization-type"
+    values = ["hvm"]
+  }
+
+  filter {
+    name   = "architecture"
+    values = ["x86_64"]
+  }
+}
+
+# Current AWS account ID
+data "aws_caller_identity" "current" {}
+
+# Current AWS region
+data "aws_region" "current" {}
+
+# ===================================
+# Local Variables
+# ===================================
+
+locals {
+  windows_ami_id = var.windows_ami != "" ? var.windows_ami : data.aws_ami.windows_2025.id
+
+  common_tags = {
+    Project     = var.project_name
+    Environment = var.environment
+    Owner       = var.owner
+  }
+
+  # Generate client IPs if not provided
+  client_ips_map = { for i in range(var.client_count) :
+    i => length(var.client_private_ips) > i ? var.client_private_ips[i] : null
+  }
+
+  # Distribute clients across provided subnets
+  client_subnet_map = { for i in range(var.client_count) :
+    i => var.subnet_clients[i % length(var.subnet_clients)]
+  }
+}

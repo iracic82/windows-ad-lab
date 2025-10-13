@@ -1,0 +1,67 @@
+---
+# ============================================================================
+# AD Client Role - Join Clients to Domain
+# Runs on all windows_clients group members
+# CRITICAL: Includes DNS fix for pre-configured 10.10.10.10 in AMI
+# ============================================================================
+
+- name: Set DNS to point to DC1
+  ansible.windows.win_dns_client:
+    adapter_names: '*'
+    ipv4_addresses: ["{{ dc1_ip }}"]
+
+- name: Wait for required ports on DC1
+  ansible.windows.win_shell: |
+    $ports = 389,88,135,445,53
+    foreach ($p in $ports) {
+      $tcp = New-Object Net.Sockets.TcpClient
+      $res = $tcp.BeginConnect("{{ dc1_ip }}",$p,$null,$null)
+      if (-not $res.AsyncWaitHandle.WaitOne(60000)) { throw "Timeout waiting for port $p on DC1" }
+      $tcp.Close()
+    }
+
+- name: Check if already domain-joined
+  ansible.windows.win_shell: "(Get-WmiObject Win32_ComputerSystem).PartOfDomain"
+  register: is_domain_member
+  changed_when: false
+
+- name: Clear static DNS and set to DC1 (fixes pre-configured 10.10.10.10 in AMI)
+  ansible.windows.win_shell: |
+    # CRITICAL FIX: Use PowerShell cmdlet to clear static DNS from AMI
+    Get-NetAdapter | Where-Object Status -eq Up | Set-DnsClientServerAddress -ServerAddresses {{ dc1_ip }}
+    ipconfig /flushdns
+    ipconfig /registerdns
+    Start-Sleep -Seconds 2
+    # Verify
+    Get-DnsClientServerAddress | Where-Object {$_.ServerAddresses -contains "{{ dc1_ip }}"} | Format-Table -AutoSize | Out-String
+
+- name: Join client to domain
+  microsoft.ad.membership:
+    dns_domain_name: "{{ domain_name }}"
+    domain_admin_user: "{{ domain_admin_user }}"
+    domain_admin_password: "{{ domain_admin_password }}"
+    state: domain
+    reboot: yes
+  register: client_join
+  retries: 3
+  delay: 30
+  until: client_join is succeeded
+  when: is_domain_member.stdout | trim | lower != 'true'
+
+- name: Wait for client after domain join
+  ansible.builtin.wait_for_connection:
+    timeout: 2400
+    connect_timeout: 60
+  when: is_domain_member.stdout | trim | lower != 'true'
+
+- name: Verify domain membership
+  ansible.windows.win_shell: |
+    $cs = Get-WmiObject Win32_ComputerSystem
+    "Computer: $($cs.Name)"
+    "Domain: $($cs.Domain)"
+    "Part of domain: $($cs.PartOfDomain)"
+  register: domain_info
+
+- name: Display domain membership
+  ansible.builtin.debug:
+    msg: "{{ domain_info.stdout_lines }}"

@@ -1,0 +1,148 @@
+# ===================================
+# Domain Controller Outputs
+# ===================================
+
+output "dc1_instance_id" {
+  description = "Instance ID of DC1"
+  value       = aws_instance.dc1.id
+}
+
+output "dc1_private_ip" {
+  description = "Private IP address of DC1"
+  value       = aws_instance.dc1.private_ip
+}
+
+output "dc1_public_ip" {
+  description = "Elastic IP address of DC1"
+  value       = aws_eip.dc1.public_ip
+}
+
+output "dc2_instance_id" {
+  description = "Instance ID of DC2"
+  value       = aws_instance.dc2.id
+}
+
+output "dc2_private_ip" {
+  description = "Private IP address of DC2"
+  value       = aws_instance.dc2.private_ip
+}
+
+output "dc2_public_ip" {
+  description = "Elastic IP address of DC2"
+  value       = aws_eip.dc2.public_ip
+}
+
+# ===================================
+# Client Outputs
+# ===================================
+
+output "client_instance_ids" {
+  description = "Instance IDs of all Windows clients"
+  value       = aws_instance.clients[*].id
+}
+
+output "client_private_ips" {
+  description = "Private IP addresses of all Windows clients"
+  value       = aws_instance.clients[*].private_ip
+}
+
+output "client_public_ips" {
+  description = "Elastic IP addresses of all Windows clients"
+  value       = aws_eip.clients[*].public_ip
+}
+
+output "client_names" {
+  description = "Names of all Windows clients"
+  value       = aws_instance.clients[*].tags.Name
+}
+
+# ===================================
+# Security Group Outputs
+# ===================================
+
+output "dc_security_group_id" {
+  description = "Security Group ID for Domain Controllers"
+  value       = aws_security_group.domain_controllers.id
+}
+
+output "client_security_group_id" {
+  description = "Security Group ID for Windows Clients"
+  value       = aws_security_group.windows_clients.id
+}
+
+# ===================================
+# Domain Configuration Outputs
+# ===================================
+
+output "domain_name" {
+  description = "Active Directory domain name"
+  value       = var.domain_name
+}
+
+output "domain_netbios" {
+  description = "Active Directory NetBIOS name"
+  value       = var.domain_netbios
+}
+
+# ===================================
+# Connection Information
+# ===================================
+
+output "rdp_connection_info" {
+  description = "RDP connection information for all instances"
+  value = {
+    dc1 = {
+      hostname    = "DC1"
+      private_ip  = aws_instance.dc1.private_ip
+      public_ip   = aws_eip.dc1.public_ip
+      username    = "Administrator"
+      domain      = var.domain_name
+    }
+    dc2 = {
+      hostname    = "DC2"
+      private_ip  = aws_instance.dc2.private_ip
+      public_ip   = aws_eip.dc2.public_ip
+      username    = "Administrator"
+      domain      = var.domain_name
+    }
+    clients = [
+      for idx, instance in aws_instance.clients : {
+        hostname    = "${var.client_name_prefix}-${idx + 1}"
+        private_ip  = instance.private_ip
+        public_ip   = aws_eip.clients[idx].public_ip
+        username    = "Administrator"
+        domain      = var.domain_name
+      }
+    ]
+  }
+}
+
+# ===================================
+# Summary Output
+# ===================================
+
+output "deployment_summary" {
+  description = "Summary of the deployment"
+  value = {
+    project_name        = var.project_name
+    environment         = var.environment
+    aws_region          = var.aws_region
+    vpc_id              = var.vpc_id
+    domain_name         = var.domain_name
+    dc_count            = 2
+    client_count        = var.client_count
+    total_instances     = 2 + var.client_count
+    ami_used            = local.windows_ami_id
+    dc_instance_type    = var.dc_instance_type
+    client_instance_type = var.client_instance_type
+  }
+}
+
+# ===================================
+# Ansible Inventory Path
+# ===================================
+
+output "ansible_inventory_path" {
+  description = "Path to the generated Ansible inventory file"
+  value       = var.generate_ansible_inventory ? local_file.ansible_inventory[0].filename : "Not generated"
+}

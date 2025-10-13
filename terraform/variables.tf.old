@@ -1,0 +1,202 @@
+# ===================================
+# AWS Configuration
+# ===================================
+
+variable "aws_region" {
+  description = "AWS region to deploy resources"
+  type        = string
+  default     = "us-east-1"
+}
+
+variable "aws_profile" {
+  description = "AWS CLI profile to use (e.g., 'okta-sso', 'default', or your custom profile)"
+  type        = string
+  default     = "default"
+}
+
+# ===================================
+# Project Tags
+# ===================================
+
+variable "project_name" {
+  description = "Project name for resource tagging"
+  type        = string
+  default     = "windows-ad-lab"
+}
+
+variable "environment" {
+  description = "Environment name (dev, test, prod)"
+  type        = string
+  default     = "dev"
+}
+
+variable "owner" {
+  description = "Owner name or team for resource tagging"
+  type        = string
+  default     = "DevOps"
+}
+
+# ===================================
+# Network Configuration
+# ===================================
+
+variable "vpc_id" {
+  description = "VPC ID where resources will be deployed"
+  type        = string
+}
+
+variable "subnet_dc1" {
+  description = "Subnet ID for Domain Controller 1"
+  type        = string
+}
+
+variable "subnet_dc2" {
+  description = "Subnet ID for Domain Controller 2"
+  type        = string
+}
+
+variable "subnet_clients" {
+  description = "Subnet IDs for client machines (list)"
+  type        = list(string)
+}
+
+# ===================================
+# IP Address Configuration
+# ===================================
+
+variable "dc1_private_ip" {
+  description = "Private IP address for DC1"
+  type        = string
+  default     = "10.100.1.100"
+}
+
+variable "dc2_private_ip" {
+  description = "Private IP address for DC2"
+  type        = string
+  default     = "10.100.2.100"
+}
+
+variable "client_private_ips" {
+  description = "Private IP addresses for client machines (optional, leave empty for auto-assignment)"
+  type        = list(string)
+  default     = []
+}
+
+# ===================================
+# Domain Configuration
+# ===================================
+
+variable "domain_name" {
+  description = "Active Directory domain name"
+  type        = string
+  default     = "corp.infolab"
+}
+
+variable "domain_netbios" {
+  description = "Active Directory NetBIOS name"
+  type        = string
+  default     = "CORP"
+}
+
+variable "domain_admin_password" {
+  description = "Domain Administrator password (use AWS Secrets Manager in production)"
+  type        = string
+  sensitive   = true
+}
+
+# ===================================
+# Instance Configuration
+# ===================================
+
+variable "dc_instance_type" {
+  description = "Instance type for Domain Controllers"
+  type        = string
+  default     = "t3.large"
+}
+
+variable "client_instance_type" {
+  description = "Instance type for client machines"
+  type        = string
+  default     = "t3.medium"
+}
+
+variable "windows_ami" {
+  description = "AMI ID for Windows Server (leave empty to auto-detect latest Windows Server 2022)"
+  type        = string
+  default     = ""
+}
+
+variable "key_name" {
+  description = "EC2 Key Pair name for RDP access"
+  type        = string
+}
+
+variable "root_volume_size" {
+  description = "Root volume size in GB"
+  type        = number
+  default     = 100
+}
+
+# ===================================
+# Client Configuration
+# ===================================
+
+variable "client_count" {
+  description = "Number of Windows client machines to create"
+  type        = number
+  default     = 4
+}
+
+variable "client_name_prefix" {
+  description = "Prefix for client machine names"
+  type        = string
+  default     = "WIN-CLIENT"
+}
+
+# ===================================
+# Security Configuration
+# ===================================
+
+variable "allowed_rdp_cidrs" {
+  description = "CIDR blocks allowed to RDP into instances"
+  type        = list(string)
+  default     = []
+}
+
+variable "allowed_winrm_cidrs" {
+  description = "CIDR blocks allowed to WinRM into instances (for Ansible)"
+  type        = list(string)
+  default     = []
+}
+
+# ===================================
+# Ansible Configuration
+# ===================================
+
+variable "ansible_user" {
+  description = "Ansible WinRM username"
+  type        = string
+  default     = "Administrator"
+}
+
+variable "generate_ansible_inventory" {
+  description = "Generate Ansible inventory file automatically"
+  type        = bool
+  default     = true
+}
+
+variable "ansible_inventory_path" {
+  description = "Path to generate Ansible inventory file"
+  type        = string
+  default     = "../ansible/inventory/aws_windows.yml"
+}
+
+# ===================================
+# DNS Configuration
+# ===================================
+
+variable "dns_forwarders" {
+  description = "DNS forwarders for the domain"
+  type        = list(string)
+  default     = ["8.8.8.8", "1.1.1.1"]
+}

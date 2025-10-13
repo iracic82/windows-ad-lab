@@ -1,0 +1,147 @@
+# ============================================================================
+# AWS Windows AD Lab - Simplified Configuration Example
+# ============================================================================
+# Copy this file to terraform.tfvars and update with your values:
+# cp terraform.tfvars.example terraform.tfvars
+#
+# CRITICAL: VPC must have DNS hostnames enabled before deployment:
+# aws ec2 modify-vpc-attribute --vpc-id <VPC_ID> --enable-dns-hostnames
+#
+# CRITICAL: LDAP UDP port 389 is included in security groups (required for domain joins!)
+# ============================================================================
+
+# ===================================
+# AWS Configuration
+# ===================================
+
+# AWS region to deploy resources
+aws_region = "eu-central-1"
+
+# AWS CLI profile to use
+# Options:
+# - "okta-sso" if using Okta SSO authentication
+# - "default" for default AWS credentials
+# - Your custom profile name
+aws_profile = "okta-sso"
+
+# ===================================
+# Project Configuration
+# ===================================
+
+project_name = "windows-ad-lab"
+environment  = "dev"
+
+# ===================================
+# Network Configuration - SIMPLIFIED!
+# ===================================
+
+# VPC ID where resources will be deployed
+# Get this from AWS Console or: aws ec2 describe-vpcs --profile okta-sso
+vpc_id = "vpc-0a7299af0067aff53"
+
+# List of subnet IDs for instance deployment
+# Instances will be distributed across these subnets in round-robin fashion
+# Get subnets: aws ec2 describe-subnets --filters "Name=vpc-id,Values=vpc-xxxxx"
+subnets = [
+  "subnet-038a27b6a94c84d89"  # eu-central-1a
+]
+
+# Note: You can add more subnets for better distribution:
+# subnets = [
+#   "subnet-038a27b6a94c84d89",  # eu-central-1a
+#   "subnet-0b64af2e9cd05cfe6",  # eu-central-1b
+#   "subnet-0c12345678abcdef0"   # eu-central-1c
+# ]
+
+# ===================================
+# Domain Configuration
+# ===================================
+
+domain_name = "corp.infolab"
+
+# Domain Administrator password
+# WARNING: In production, use AWS Secrets Manager!
+domain_admin_password = "P@ssw0rd123!SecureAD"
+
+# ===================================
+# Instance Configuration - SIMPLIFIED!
+# ===================================
+
+# Number of domain controllers (minimum 1, recommended 2+)
+domain_controller_count = 2
+
+# Number of Windows clients (can be 0)
+client_count = 1
+
+# Instance types
+dc_instance_type     = "t3.large"   # DCs need more resources
+client_instance_type = "t3.medium"  # Clients can be smaller
+
+# EC2 Key Pair name for RDP access
+key_name = "ssh-key-servers"
+
+# Root volume size in GB
+root_volume_size = 50
+
+# ===================================
+# Security Configuration
+# ===================================
+
+# Your public IP address for RDP and WinRM access
+# Get your IP: curl -s ifconfig.me
+allowed_rdp_cidrs = [
+  "YOUR.PUBLIC.IP/32"  # Replace with your actual public IP
+]
+
+allowed_winrm_cidrs = [
+  "YOUR.PUBLIC.IP/32"  # Replace with your actual public IP
+]
+
+# Example with multiple IPs:
+# allowed_rdp_cidrs = [
+#   "203.0.113.10/32",   # Your home IP
+#   "198.51.100.0/24"    # Your office network
+# ]
+
+# ===================================
+# Advanced Configuration (Optional)
+# ===================================
+
+# Leave empty to auto-detect latest Windows Server 2025 AMI
+# Specify an AMI ID if you want to use a specific version:
+# windows_ami = "ami-0e2ee5d195754bb30"
+windows_ami = ""
+
+# Ansible username (default is Administrator)
+ansible_user = "Administrator"
+
+# ============================================================================
+# Examples for Different Deployment Scenarios
+# ============================================================================
+
+# Minimal (1 DC, 0 clients) - for testing:
+# domain_controller_count = 1
+# client_count            = 0
+
+# Standard (2 DCs, 1 client) - current configuration:
+# domain_controller_count = 2
+# client_count            = 1
+
+# Large (3 DCs, 10 clients) - production-like:
+# domain_controller_count = 3
+# client_count            = 10
+# dc_instance_type        = "t3.xlarge"
+# subnets = ["subnet-xxx", "subnet-yyy", "subnet-zzz"]
+
+# ============================================================================
+# Cost Estimates (eu-central-1)
+# ============================================================================
+# 2 DCs (t3.large):     ~$0.34/hr (~$245/month)
+# 1 Client (t3.medium): ~$0.08/hr (~$58/month)
+# 3 Elastic IPs:        ~$0.03/hr (~$22/month)
+# ----------------------------------------------
+# Total:                ~$0.45/hr (~$325/month)
+#
+# Cost-saving tip: Stop instances when not in use!
+# (Note: EIP charges continue even when stopped)
+# ============================================================================

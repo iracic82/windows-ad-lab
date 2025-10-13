@@ -1,0 +1,45 @@
+# Auto-generated Ansible Inventory by Terraform
+# Generated at: ${timestamp()}
+# Domain: ${domain_name}
+
+all:
+  vars:
+    ansible_user: ${ansible_user}
+    ansible_password: ${ansible_password}
+    ansible_connection: winrm
+    ansible_winrm_transport: ntlm
+    ansible_winrm_server_cert_validation: ignore
+    ansible_port: 5985
+    domain_name: ${domain_name}
+    domain_admin_password: ${ansible_password}
+    dc1_ip: ${dc1_ip}
+    dc2_ip: ${dc2_ip}
+    dns_forwarders: [8.8.8.8, 1.1.1.1]
+
+  children:
+    windows:
+      hosts:
+%{ for name, details in dc_hosts ~}
+        ${name}:
+          ansible_host: ${details.ansible_host}
+          private_ip: ${details.private_ip}
+          role: domain_controller
+%{ endfor ~}
+%{ for name, details in client_hosts ~}
+        ${name}:
+          ansible_host: ${details.ansible_host}
+          private_ip: ${details.private_ip}
+          role: domain_client
+%{ endfor ~}
+
+    domain_controllers:
+      hosts:
+%{ for name, details in dc_hosts ~}
+        ${name}:
+%{ endfor ~}
+
+    windows_clients:
+      hosts:
+%{ for name, details in client_hosts ~}
+        ${name}:
+%{ endfor ~}

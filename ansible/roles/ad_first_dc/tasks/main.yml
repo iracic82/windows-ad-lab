@@ -1,0 +1,62 @@
+---
+# ============================================================================
+# AD First DC Role - Create Forest Root Domain
+# Runs ONLY on the FIRST domain controller
+# ============================================================================
+
+- name: Set DNS client to DC1 initially
+  ansible.windows.win_dns_client:
+    adapter_names: '*'
+    ipv4_addresses: ["{{ dc1_ip }}"]
+
+- name: Promote DC1 as forest root (creates AD-integrated DNS for {{ domain_name }})
+  throttle: 1
+  microsoft.ad.domain:
+    dns_domain_name: "{{ domain_name }}"
+    safe_mode_password: "{{ ansible_password }}"
+    reboot: true
+  # Note: install_dns removed for Windows Server 2025 compatibility
+
+- name: Wait for DC1 to come back after forest promotion
+  throttle: 1
+  ansible.builtin.wait_for_connection:
+    timeout: 2400
+    connect_timeout: 60
+
+- name: Wait for NetLogon/SYSVOL to be advertised (DC1)
+  throttle: 1
+  ansible.windows.win_shell: nltest /dsgetdc:{{ domain_name }}
+  register: dc1_adv
+  retries: 30
+  delay: 20
+  until: dc1_adv.rc == 0
+
+- name: Wait for SYSVOL share to exist (DC1)
+  throttle: 1
+  ansible.windows.win_shell: |
+    if (Test-Path \\localhost\\SYSVOL) { exit 0 } else { exit 1 }
+  register: sysvol1
+  retries: 30
+  delay: 20
+  until: sysvol1.rc == 0
+
+- name: Configure DNS forwarders on DC1
+  ansible.windows.win_shell: |
+    Import-Module DnsServer
+    Set-DnsServerForwarder -IPAddress {{ dns_forwarders | join(',') }} -UseRootHint $false
+    Get-DnsServerForwarder | Format-List | Out-String
+
+- name: Configure DHCP server on DC1
+  ansible.windows.win_shell: |
+    Import-Module DhcpServer
+    # Authorize DHCP server in AD
+    Add-DhcpServerInDC -DnsName DC1.{{ domain_name }} -IPAddress {{ dc1_ip }}
+
+    # Create DHCP scope
+    $scopeExists = Get-DhcpServerv4Scope -ErrorAction SilentlyContinue | Where-Object {$_.Name -eq "Lab-Scope"}
+    if (-not $scopeExists) {
+      Add-DhcpServerv4Scope -Name "Lab-Scope" -StartRange 10.10.10.50 -EndRange 10.10.10.60 -SubnetMask 255.255.255.240 -State Active
+      Set-DhcpServerv4OptionValue -ScopeId 10.10.10.48 -DnsServer {{ dc1_ip }}{% if dc2_ip is defined %},{{ dc2_ip }}{% endif %} -Router 10.10.10.1
+    }
+    Get-DhcpServerv4Scope | Format-Table | Out-String
+  ignore_errors: yes

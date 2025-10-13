@@ -1,0 +1,92 @@
+---
+# ============================================================================
+# Site Playbook - Scalable AD Forest Deployment
+# Works for ANY number of DCs and clients
+# ============================================================================
+
+# Play 1: Run common tasks on ALL hosts (DCs + clients)
+- name: Common Setup for All Hosts
+  hosts: all
+  gather_facts: no
+  strategy: linear
+
+  vars:
+    domain_name: corp.infolab
+    domain_netbios: CORP
+    domain_admin_user: "{{ domain_netbios }}\\Administrator"
+    domain_admin_password: "{{ ansible_password }}"
+    # dc1_ip, dc2_ip, dns_forwarders come from inventory
+
+    # WinRM stability settings
+    ansible_connection: winrm
+    ansible_winrm_transport: ntlm
+    ansible_winrm_server_cert_validation: ignore
+    ansible_winrm_operation_timeout_sec: 60
+    ansible_winrm_read_timeout_sec: 70
+
+  roles:
+    - ad_common
+
+# Play 2: Create forest on FIRST DC only
+- name: Create AD Forest on First DC
+  hosts: domain_controllers[0]
+  gather_facts: no
+  strategy: linear
+
+  vars:
+    domain_name: corp.infolab
+    domain_netbios: CORP
+    domain_admin_user: "{{ domain_netbios }}\\Administrator"
+    domain_admin_password: "{{ ansible_password }}"
+
+    ansible_connection: winrm
+    ansible_winrm_transport: ntlm
+    ansible_winrm_server_cert_validation: ignore
+    ansible_winrm_operation_timeout_sec: 60
+    ansible_winrm_read_timeout_sec: 70
+
+  roles:
+    - ad_first_dc
+
+# Play 3: Join additional DCs (DC2, DC3, DC4... any number!)
+- name: Join Additional DCs to Domain
+  hosts: domain_controllers[1:]
+  gather_facts: no
+  strategy: linear
+  serial: 1  # One DC at a time to avoid replication issues
+
+  vars:
+    domain_name: corp.infolab
+    domain_netbios: CORP
+    domain_admin_user: "{{ domain_netbios }}\\Administrator"
+    domain_admin_password: "{{ ansible_password }}"
+
+    ansible_connection: winrm
+    ansible_winrm_transport: ntlm
+    ansible_winrm_server_cert_validation: ignore
+    ansible_winrm_operation_timeout_sec: 60
+    ansible_winrm_read_timeout_sec: 70
+
+  roles:
+    - ad_additional_dc
+
+# Play 4: Join all clients to domain
+- name: Join Windows Clients to Domain
+  hosts: windows_clients
+  gather_facts: no
+  strategy: linear
+
+  vars:
+    domain_name: corp.infolab
+    domain_netbios: CORP
+    domain_admin_user: "{{ domain_netbios }}\\Administrator"
+    domain_admin_password: "{{ ansible_password }}"
+
+    ansible_connection: winrm
+    ansible_winrm_transport: ntlm
+    ansible_winrm_server_cert_validation: ignore
+    ansible_winrm_operation_timeout_sec: 60
+    ansible_winrm_read_timeout_sec: 70
+
+  roles:
+    - ad_client

@@ -1,0 +1,134 @@
+---
+# ============================================================================
+# AD Additional DC Role - Join Domain & Promote to DC
+# Runs on ALL domain controllers EXCEPT the first one
+# CRITICAL: Includes DNS fix for pre-configured 10.10.10.10 in AMI
+# ============================================================================
+
+- name: Ensure DNS points to DC1 before join
+  ansible.windows.win_dns_client:
+    adapter_names: '*'
+    ipv4_addresses: ["{{ dc1_ip }}"]
+
+- name: Wait for required ports on DC1 (LDAP/Kerberos/RPC/SMB/DNS)
+  ansible.windows.win_shell: |
+    $ports = 389,88,135,445,53
+    foreach ($p in $ports) {
+      $tcp = New-Object Net.Sockets.TcpClient
+      $res = $tcp.BeginConnect("{{ dc1_ip }}",$p,$null,$null)
+      if (-not $res.AsyncWaitHandle.WaitOne(120000)) { throw "Timeout waiting for port $p on DC1" }
+      $tcp.Close()
+    }
+  register: dc1_ports
+  retries: 3
+  delay: 10
+  until: dc1_ports is succeeded
+
+- name: Detect current domain membership
+  ansible.windows.win_shell: "(Get-WmiObject Win32_ComputerSystem).PartOfDomain"
+  register: part_of_domain
+  changed_when: false
+
+- name: Clear static DNS and set to DC1 (fixes pre-configured 10.10.10.10 in AMI)
+  ansible.windows.win_shell: |
+    # CRITICAL FIX: Use PowerShell cmdlet to clear static DNS from AMI
+    Get-NetAdapter | Where-Object Status -eq Up | Set-DnsClientServerAddress -ServerAddresses {{ dc1_ip }}
+    ipconfig /flushdns
+    ipconfig /registerdns
+    Start-Sleep -Seconds 2
+    # Verify
+    Get-DnsClientServerAddress | Where-Object {$_.ServerAddresses -contains "{{ dc1_ip }}"} | Format-Table -AutoSize | Out-String
+
+- name: Join to the domain (skip if already joined)
+  throttle: 1
+  microsoft.ad.membership:
+    dns_domain_name: "{{ domain_name }}"
+    domain_admin_user: "{{ domain_admin_user }}"
+    domain_admin_password: "{{ domain_admin_password }}"
+    state: domain
+  register: join_res
+  retries: 3
+  delay: 30
+  until: join_res is succeeded
+  when: part_of_domain.stdout | trim | lower != 'true'
+
+- name: Reboot after domain join
+  throttle: 1
+  ansible.windows.win_reboot:
+    pre_reboot_delay: 5
+    post_reboot_delay: 45
+    reboot_timeout: 2400
+    connect_timeout: 60
+
+- name: Wait after join
+  throttle: 1
+  ansible.builtin.wait_for_connection:
+    timeout: 2400
+    connect_timeout: 60
+
+- name: Ensure DNS still points to DC1 before promotion
+  ansible.windows.win_dns_client:
+    adapter_names: '*'
+    ipv4_addresses: ["{{ dc1_ip }}"]
+
+- name: Is this host already a DC?
+  ansible.windows.win_shell: |
+    try {
+      Import-Module ActiveDirectory
+      $null = Get-ADDomainController -Server localhost -ErrorAction Stop
+      'true'
+    } catch { 'false' }
+  register: is_dc
+  changed_when: false
+
+- name: Promote to additional domain controller with DNS
+  throttle: 1
+  microsoft.ad.domain_controller:
+    dns_domain_name: "{{ domain_name }}"
+    domain_admin_user: "{{ domain_admin_user }}"
+    domain_admin_password: "{{ domain_admin_password }}"
+    safe_mode_password: "{{ ansible_password }}"
+    state: domain_controller
+    reboot: true
+  # Note: install_dns removed for Windows Server 2025 compatibility
+  register: promo_res
+  retries: 2
+  delay: 60
+  until: promo_res is succeeded
+  when: is_dc.stdout | default('') | trim | lower != 'true'
+
+- name: Wait after DC promotion
+  throttle: 1
+  ansible.builtin.wait_for_connection:
+    timeout: 2400
+    connect_timeout: 60
+
+- name: Wait for NetLogon/SYSVOL to be advertised
+  throttle: 1
+  ansible.windows.win_shell: nltest /dsgetdc:{{ domain_name }}
+  register: dc_adv
+  retries: 30
+  delay: 20
+  until: dc_adv.rc == 0
+
+- name: Wait for SYSVOL share to exist
+  throttle: 1
+  ansible.windows.win_shell: |
+    if (Test-Path \\localhost\\SYSVOL) { exit 0 } else { exit 1 }
+  register: sysvol
+  retries: 30
+  delay: 20
+  until: sysvol.rc == 0
+
+- name: Configure DNS forwarders
+  ansible.windows.win_shell: |
+    Import-Module DnsServer
+    Set-DnsServerForwarder -IPAddress {{ dns_forwarders | join(',') }} -UseRootHint $false
+    Get-DnsServerForwarder | Format-List | Out-String
+
+- name: Update DNS client to use itself first, then peer
+  ansible.windows.win_dns_client:
+    adapter_names: '*'
+    ipv4_addresses:
+      - "{{ hostvars[inventory_hostname]['private_ip'] }}"
+      - "{{ dc1_ip }}"

@@ -1,0 +1,64 @@
+---
+# ============================================================================
+# AD Common Role - Preflight Checks and Initial Configuration
+# Runs on ALL hosts (DCs and clients)
+# ============================================================================
+
+- name: Preflight | Verify WinRM auth on each host
+  ansible.windows.win_whoami:
+  register: who
+  retries: 6
+  delay: 10
+  until: who is succeeded
+  changed_when: false
+  tags: [preflight]
+
+- name: Preflight | Ensure Windows Time service is running
+  ansible.windows.win_service:
+    name: W32Time
+    state: started
+    start_mode: auto
+  changed_when: false
+  tags: [preflight]
+
+- name: Preflight | Try a time resync
+  ansible.windows.win_shell: w32tm /resync /nowait
+  changed_when: false
+  failed_when: false
+  tags: [preflight]
+
+- name: Disable Windows Update (speed up role installs)
+  ansible.windows.win_shell: |
+    sc.exe stop wuauserv
+    sc.exe stop usosvc
+    sc.exe stop dosvc
+    sc.exe config wuauserv start= disabled
+    sc.exe config usosvc start= disabled
+    sc.exe config dosvc start= disabled
+  changed_when: false
+  failed_when: false
+  tags: [preflight]
+
+- name: Install ADDS, DNS, and DHCP roles (DCs only)
+  ansible.windows.win_feature:
+    name:
+      - AD-Domain-Services
+      - DNS
+      - DHCP
+    state: present
+    include_management_tools: yes
+  register: feat
+  retries: 3
+  delay: 20
+  until: feat is succeeded
+  when: "'domain_controllers' in group_names"
+
+- name: Reboot after role install if requested
+  ansible.windows.win_reboot:
+    pre_reboot_delay: 5
+    post_reboot_delay: 30
+    reboot_timeout: 2400
+    connect_timeout: 60
+  when:
+    - "'domain_controllers' in group_names"
+    - feat.reboot_required | default(false)

@@ -1,0 +1,154 @@
+# ============================================================================
+# AWS Windows AD Lab - Git Ignore
+# ============================================================================
+
+# Terraform Files
+# ---------------
+terraform/.terraform/
+terraform/.terraform.lock.hcl
+terraform/terraform.tfstate
+terraform/terraform.tfstate.backup
+terraform/*.tfvars
+!terraform/terraform.tfvars.example
+terraform/.terraform.tfstate.lock.info
+terraform/crash.log
+terraform/override.tf
+terraform/override.tf.json
+terraform/*_override.tf
+terraform/*_override.tf.json
+terraform/.terraformrc
+terraform/terraform.rc
+
+# Ansible Files
+# -------------
+ansible/*.retry
+ansible/*.log
+ansible/.vault_pass
+ansible/inventory/aws_windows.yml
+ansible/inventory/*.yml
+!ansible/inventory/.gitkeep
+
+# AWS Credentials
+# ---------------
+.aws/
+*.pem
+*.ppk
+*.key
+credentials
+config
+
+# Python
+# ------
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+ENV/
+env/
+*.egg-info/
+dist/
+build/
+
+# IDEs
+# ----
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Logs
+# ----
+*.log
+logs/
+*.out
+
+# Backup Files
+# ------------
+*.bak
+*.backup
+*.tmp
+*.temp
+
+# Secrets
+# -------
+secrets/
+*.secret
+*.secrets
+.env
+.env.local
+
+# Windows
+# -------
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# macOS
+# -----
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+.DocumentRevisions-V100
+.fseventsd
+.Spotlight-V100
+.TemporaryItems
+.Trashes
+.VolumeIcon.icns
+.com.apple.timemachine.donotpresent
+
+# Linux
+# -----
+*~
+.fuse_hidden*
+.directory
+.Trash-*
+.nfs*
+
+# SSH Keys
+# --------
+id_rsa
+id_dsa
+id_ecdsa
+id_ed25519
+*.pub
+
+# Documentation Build
+# -------------------
+docs/_build/
+site/
+
+# Test Results
+# ------------
+test-results/
+coverage/
+.coverage
+htmlcov/
+.pytest_cache/
+
+# ============================================================================
+# Important: What SHOULD Be Committed
+# ============================================================================
+# DO commit:
+# - README.md
+# - DEPLOYMENT.md
+# - TECHNICAL_NOTES.md
+# - terraform/*.tf files
+# - terraform/terraform.tfvars.example
+# - terraform/inventory-template.tftpl
+# - ansible/playbooks/*.yml
+# - ansible/ansible.cfg (if created)
+# - This .gitignore file
+#
+# DO NOT commit:
+# - terraform/terraform.tfvars (contains your VPC IDs, IPs)
+# - ansible/inventory/aws_windows.yml (auto-generated with IPs/passwords)
+# - *.log files (may contain sensitive output)
+# - AWS credentials or keys
+# ============================================================================
+ansible/terraform.tfstate*
