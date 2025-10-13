@@ -1,18 +1,20 @@
 # Multi-VPC Deployment with Existing VPC Peering
 
+This guide covers deploying Domain Controllers and clients in separate VPCs when VPC peering has already been configured by the network team.
+
 **Prerequisites:**
-- ✅ VPC peering already configured by network team
-- ✅ Routes already exist between VPCs
-- ✅ You just need to place DCs and clients in the right VPCs
+- VPC peering already configured between target VPCs
+- Route tables already updated for cross-VPC communication
+- Security groups allow cross-VPC traffic (or will be created)
 
 ---
 
-## Simple Configuration
+## Current Limitation
 
-### Current terraform.tfvars (Single VPC)
+The Terraform code currently supports only a single VPC for all resources:
 
 ```hcl
-# Everything in one VPC
+# Everything must be in one VPC
 vpc_id  = "vpc-abc123"
 subnets = ["subnet-111", "subnet-222"]
 
@@ -20,20 +22,35 @@ domain_controller_count = 3
 client_count            = 2
 ```
 
-### What You Want: DCs in VPC-A, Clients in VPC-B
+## Target Architecture
 
-**Problem:** Current code doesn't support this. You need to specify VPC per instance.
+Desired configuration: Domain Controllers in one VPC, clients in another VPC.
+
+```
+VPC-A (10.10.0.0/16) - Domain Controllers
+├── DC1 (10.10.10.5)
+├── DC2 (10.10.10.6)
+└── DC3 (10.10.10.7)
+         │
+         │ VPC Peering (already configured)
+         │
+VPC-B (10.20.0.0/16) - Clients
+├── CLIENT1 (10.20.1.10)
+└── CLIENT2 (10.20.1.11)
+```
 
 ---
 
-## Solution 1: Separate Terraform Deployments (Current Code)
+## Available Solutions
 
-Since current code only supports one VPC, deploy in two steps:
+### Solution 1: Separate Terraform Deployments
 
-### Step 1: Deploy DCs in VPC-A
+Deploy resources in two separate runs using different variable files.
 
+**Step 1: Deploy Domain Controllers**
+
+Create `terraform-dcs.tfvars`:
 ```hcl
-# terraform-dcs.tfvars
 vpc_id  = "vpc-AAAA-for-DCs"
 subnets = ["subnet-dc-1", "subnet-dc-2"]
 
@@ -41,15 +58,16 @@ domain_controller_count = 3
 client_count            = 0  # No clients
 ```
 
+Deploy:
 ```bash
 cd terraform
 terraform apply -var-file="terraform-dcs.tfvars"
 ```
 
-### Step 2: Deploy Clients in VPC-B
+**Step 2: Deploy Clients**
 
+Create `terraform-clients.tfvars`:
 ```hcl
-# terraform-clients.tfvars
 vpc_id  = "vpc-BBBB-for-clients"
 subnets = ["subnet-client-1", "subnet-client-2"]
 
@@ -57,20 +75,24 @@ domain_controller_count = 0  # No DCs
 client_count            = 2
 ```
 
+Deploy:
 ```bash
 terraform apply -var-file="terraform-clients.tfvars"
 ```
 
-**Problem:** This creates separate Terraform states and inventories. Not ideal.
+**Limitations:**
+- Creates separate Terraform states
+- Requires manual inventory merging
+- More complex to manage
 
 ---
 
-## Solution 2: Modify terraform.tfvars Syntax (Requires Code Change)
+### Solution 2: Enhanced Variable Structure
 
-To support what you want, we'd need to change the Terraform variables to:
+A more flexible approach would modify the Terraform variable structure to support per-instance VPC configuration:
 
 ```hcl
-# Desired configuration (NOT currently supported)
+# Proposed configuration (requires code changes)
 domain_controllers = [
   { vpc_id = "vpc-AAAA", subnet_id = "subnet-dc-1" },
   { vpc_id = "vpc-AAAA", subnet_id = "subnet-dc-2" },
@@ -83,71 +105,78 @@ clients = [
 ]
 ```
 
-**This would require Terraform code changes to support per-instance VPC configuration.**
+**Implementation:**
+- Requires modifying Terraform module calls
+- Add logic to handle per-resource VPC selection
+- Update security group rules for cross-VPC communication
 
 ---
 
-## Solution 3: Quick Implementation (15 minutes)
+### Solution 3: Simplified Multi-VPC Variables
 
-I can add these variables to Terraform to support your use case:
+Add dedicated VPC variables for DCs and clients while maintaining the current architecture.
 
-### New variables in terraform.tfvars:
+**New variables in `terraform.tfvars`:**
 
 ```hcl
-# Domain Controllers Configuration
+# Domain Controllers VPC
 dc_vpc_id      = "vpc-AAAA-for-DCs"
 dc_subnets     = ["subnet-dc-1", "subnet-dc-2"]
 domain_controller_count = 3
 
-# Clients Configuration
+# Clients VPC
 client_vpc_id  = "vpc-BBBB-for-clients"
 client_subnets = ["subnet-client-1", "subnet-client-2"]
 client_count   = 2
 
-# Network team already configured:
-# ✅ VPC peering between vpc-AAAA and vpc-BBBB
-# ✅ Routes in route tables
-# ✅ Security groups allow cross-VPC traffic
+# Network assumptions:
+# - VPC peering between dc_vpc_id and client_vpc_id exists
+# - Routes configured in both VPC route tables
+# - Cross-VPC traffic allowed (or will be configured)
 ```
 
-### What Terraform will do:
-- ✅ Deploy DCs in vpc-AAAA using dc_subnets
-- ✅ Deploy clients in vpc-BBBB using client_subnets
-- ✅ Create security groups that allow traffic between the VPC CIDRs
-- ❌ **NO VPC peering** (assumes it exists)
-- ❌ **NO route table changes** (assumes routes exist)
+**Terraform behavior:**
+- Deploy DCs in `dc_vpc_id` using `dc_subnets`
+- Deploy clients in `client_vpc_id` using `client_subnets`
+- Create security groups allowing cross-VPC traffic via CIDR blocks
+- Does NOT create or modify VPC peering
+- Does NOT modify route tables
+
+**Required Terraform changes:**
+1. Add new variables to `variables.tf`
+2. Update module calls to use VPC-specific variables
+3. Modify security groups to allow cross-VPC CIDR blocks
+4. Update inventory generator to handle cross-VPC hosts
 
 ---
 
-## What You Need to Provide
+## Required Information
 
-Before deployment, get from your network team:
+Before deployment, gather the following from the network team:
+
+### VPC Information
 
 ```bash
 # Domain Controllers VPC
-DC_VPC_ID="vpc-xxxxx"
+DC_VPC_ID="vpc-0abc123def456"
 DC_VPC_CIDR="10.10.0.0/16"
-DC_SUBNET_1="subnet-aaa"
-DC_SUBNET_2="subnet-bbb"
+DC_SUBNET_1="subnet-aaa111"
+DC_SUBNET_2="subnet-aaa222"
 
 # Clients VPC
-CLIENT_VPC_ID="vpc-yyyyy"
+CLIENT_VPC_ID="vpc-0xyz789ghi012"
 CLIENT_VPC_CIDR="10.20.0.0/16"
-CLIENT_SUBNET_1="subnet-xxx"
-CLIENT_SUBNET_2="subnet-yyy"
+CLIENT_SUBNET_1="subnet-bbb111"
+CLIENT_SUBNET_2="subnet-bbb222"
 
-# Verify VPC peering exists
-PEERING_ID="pcx-zzzzz"  # Should be "active"
-
-# Verify routes exist
-# Route in DC VPC route table: 10.20.0.0/16 → pcx-zzzzz
-# Route in Client VPC route table: 10.10.0.0/16 → pcx-zzzzz
+# VPC Peering
+PEERING_ID="pcx-0abcdef123"  # Status should be "active"
 ```
 
 ### Verification Commands
 
 ```bash
-# Check VPC peering
+# Verify VPC peering exists and is active
 aws ec2 describe-vpc-peering-connections \
   --filters "Name=status-code,Values=active" \
   --query 'VpcPeeringConnections[*].[VpcPeeringConnectionId,RequesterVpcInfo.VpcId,AccepterVpcInfo.VpcId]' \
@@ -164,187 +193,221 @@ aws ec2 describe-route-tables \
   --query 'RouteTables[*].Routes[?VpcPeeringConnectionId!=`null`]'
 ```
 
-**Expected:** Routes to remote VPC CIDR via peering connection ID.
+**Expected result:** Routes to remote VPC CIDR via peering connection ID.
 
 ---
 
-## Configuration File
+## Example Configuration
 
-### terraform.tfvars
+### Single VPC (Current, Default)
 
 ```hcl
-# ══════════════════════════════════════════════════════
-# AWS Configuration
-# ══════════════════════════════════════════════════════
-aws_region  = "eu-central-1"
-aws_profile = "okta-sso"
-
-# ══════════════════════════════════════════════════════
-# DOMAIN CONTROLLERS - VPC and Subnets
-# ══════════════════════════════════════════════════════
-dc_vpc_id  = "vpc-0abc123def456"          # Get from network team
-dc_subnets = ["subnet-dc1", "subnet-dc2"] # Get from network team
+# terraform.tfvars
+vpc_id  = "vpc-abc123"
+subnets = ["subnet-111", "subnet-222"]
 
 domain_controller_count = 3
+client_count            = 2
+```
 
-# ══════════════════════════════════════════════════════
-# CLIENTS - VPC and Subnets
-# ══════════════════════════════════════════════════════
-client_vpc_id  = "vpc-0xyz789ghi012"              # Get from network team
-client_subnets = ["subnet-client1", "subnet-client2"] # Get from network team
+### Multi-VPC (Future Enhancement)
 
+```hcl
+# terraform.tfvars
+# Domain Controllers in shared services VPC
+dc_vpc_id  = "vpc-0abc123def456"
+dc_subnets = ["subnet-dc1", "subnet-dc2"]
+domain_controller_count = 3
+
+# Clients in application VPC
+client_vpc_id  = "vpc-0xyz789ghi012"
+client_subnets = ["subnet-client1", "subnet-client2"]
 client_count = 2
 
-# ══════════════════════════════════════════════════════
-# DOMAIN Configuration
-# ══════════════════════════════════════════════════════
+# Domain configuration
 domain_name           = "corp.infolab"
 domain_admin_password = "P@ssw0rd123!SecureAD"
 
-# ══════════════════════════════════════════════════════
-# INSTANCE Configuration
-# ══════════════════════════════════════════════════════
+# Instance configuration
 dc_instance_type     = "t3.large"
 client_instance_type = "t3.medium"
 
-# ══════════════════════════════════════════════════════
-# SECURITY
-# ══════════════════════════════════════════════════════
+# Security
 key_name            = "your-key-name"
 allowed_rdp_cidrs   = ["YOUR.IP/32"]
 allowed_winrm_cidrs = ["YOUR.IP/32"]
-
-# ══════════════════════════════════════════════════════
-# NETWORK (Assumes VPC peering already exists!)
-# ══════════════════════════════════════════════════════
-# VPC peering between dc_vpc_id and client_vpc_id must exist
-# Routes must be configured by network team
-# Terraform will NOT create peering or routes
 ```
 
 ---
 
-## Deployment
+## Security Group Configuration
+
+When deploying across VPCs, security groups must allow traffic using CIDR blocks instead of security group references.
+
+**DC Security Group (in DC VPC):**
+```hcl
+# Allow LDAP from Client VPC CIDR
+ingress {
+  from_port   = 389
+  to_port     = 389
+  protocol    = "tcp"
+  cidr_blocks = ["10.20.0.0/16"]  # Client VPC CIDR
+}
+
+# Repeat for all AD ports: DNS (53), Kerberos (88), SMB (445), etc.
+```
+
+**Client Security Group (in Client VPC):**
+```hcl
+# Allow responses from DC VPC
+ingress {
+  from_port   = 0
+  to_port     = 65535
+  protocol    = "-1"
+  cidr_blocks = ["10.10.0.0/16"]  # DC VPC CIDR
+}
+```
+
+---
+
+## Ansible Considerations
+
+Ansible operates independently of VPC boundaries and requires no changes for multi-VPC deployments.
+
+**Inventory structure remains the same:**
+```yaml
+all:
+  vars:
+    dc1_ip: 10.10.10.5   # In VPC-A
+
+  children:
+    domain_controllers:
+      hosts:
+        dc1: { ansible_host: 3.126.28.111, private_ip: 10.10.10.5 }
+
+    windows_clients:
+      hosts:
+        client1: { ansible_host: 18.198.174.18, private_ip: 10.20.1.10 }  # In VPC-B
+```
+
+Ansible uses either public IPs or private IPs (if running from within AWS) and is unaffected by VPC boundaries.
+
+---
+
+## Verification Steps
+
+After deployment, verify cross-VPC connectivity:
 
 ```bash
-cd terraform
+# Test network connectivity from client to DC
+ansible client1 -i inventory/aws_windows.yml \
+  -m ansible.windows.win_shell \
+  -a "Test-NetConnection -ComputerName {{ dc1_ip }} -Port 389"
 
-# Review what will be created
-terraform plan
+# Expected: TcpTestSucceeded : True
 
-# Deploy
-terraform apply
+# Verify DNS resolution
+ansible client1 -i inventory/aws_windows.yml \
+  -m ansible.windows.win_shell \
+  -a "nslookup corp.infolab {{ dc1_ip }}"
 
-# Result:
-# ✅ 3 DCs in vpc-0abc123def456
-# ✅ 2 Clients in vpc-0xyz789ghi012
-# ✅ Security groups allow cross-VPC traffic
-# ✅ Ansible inventory includes all hosts
+# Expected: Returns DC records
+
+# Verify domain join
+ansible windows -i inventory/aws_windows.yml \
+  -m ansible.windows.win_shell \
+  -a "(Get-WmiObject Win32_ComputerSystem).Domain"
+
+# Expected: corp.infolab (all hosts)
 ```
 
 ---
 
-## What Terraform Does
+## Common Issues
 
-### ✅ Creates:
-- EC2 instances for DCs in DC VPC
-- EC2 instances for clients in Client VPC
-- Security groups in each VPC
-- Security group rules allowing DC VPC CIDR ↔ Client VPC CIDR
+### Issue: No Route to DC
 
-### ❌ Does NOT Create:
-- VPC peering (assumes it exists)
-- Route table entries (assumes they exist)
-- VPC modifications (assumes network team configured)
+**Symptom:** `Test-NetConnection` fails from client to DC
 
----
+**Resolution:**
+1. Verify VPC peering is active
+2. Check route tables contain peering routes
+3. Confirm security groups allow required ports
 
-## Security Groups Automatically Configured
+### Issue: Domain Join Fails
 
-Terraform automatically creates rules allowing cross-VPC traffic:
+**Error:** "The specified domain either does not exist or could not be contacted"
 
-```
-DC Security Group (in DC VPC):
-✅ Allow from Client VPC CIDR:
-   - LDAP (389 TCP/UDP)
-   - DNS (53 TCP/UDP)
-   - Kerberos (88 TCP/UDP)
-   - SMB (445 TCP)
-   - RPC (135, 49152-65535 TCP)
-   - Global Catalog (3268-3269 TCP)
+**Resolution:**
+1. Verify security groups allow LDAP UDP port 389
+2. Check DNS is set to DC IP on clients
+3. Confirm cross-VPC routes exist
 
-Client Security Group (in Client VPC):
-✅ Allow from DC Security Group (same VPC):
-   - Not applicable, different VPCs
-✅ Allow from DC VPC CIDR:
-   - All responses from DCs
-```
+### Issue: Overlapping CIDR Blocks
+
+**Error:** VPC CIDRs overlap
+
+**Resolution:** VPCs must have non-overlapping CIDR blocks. Modify one VPC's CIDR or select different VPCs.
 
 ---
 
-## Ansible - No Changes
+## Implementation Roadmap
 
-Ansible works the same:
+**Phase 1: Current State**
+- Single VPC deployment
+- All resources in same VPC
+- Working and tested
 
-```bash
-cd ../ansible
+**Phase 2: Add Multi-VPC Variables**
+- Add `dc_vpc_id`, `dc_subnets`
+- Add `client_vpc_id`, `client_subnets`
+- Update security groups for cross-VPC CIDR
+- No VPC peering creation (assumes it exists)
 
-# Test connectivity
-export OBJC_DISABLE_INITIALIZE_FORK_SAFETY=YES
-ansible all -i inventory/aws_windows.yml -m win_ping
-
-# Deploy AD
-ansible-playbook -i inventory/aws_windows.yml playbooks/site.yml
-```
-
-Ansible uses private IPs, VPC boundaries are transparent.
+**Phase 3: Enhanced Flexibility**
+- Per-instance VPC configuration
+- Support DCs across multiple VPCs
+- Automatic VPC peering (optional)
 
 ---
 
 ## Quick Reference
 
-### Find Your VPC IDs
+### Find VPC IDs
 
 ```bash
 aws ec2 describe-vpcs \
   --query 'Vpcs[*].[VpcId,CidrBlock,Tags[?Key==`Name`].Value|[0]]' \
-  --output table \
-  --profile okta-sso
+  --output table
 ```
 
-### Find Subnets in a VPC
+### Find Subnets
 
 ```bash
 aws ec2 describe-subnets \
   --filters "Name=vpc-id,Values=vpc-xxxxx" \
   --query 'Subnets[*].[SubnetId,CidrBlock,AvailabilityZone]' \
-  --output table \
-  --profile okta-sso
+  --output table
 ```
 
-### Verify VPC Peering Exists
+### Verify Peering
 
 ```bash
 aws ec2 describe-vpc-peering-connections \
   --filters "Name=status-code,Values=active" \
-  --query 'VpcPeeringConnections[?RequesterVpcInfo.VpcId==`vpc-AAAA` && AccepterVpcInfo.VpcId==`vpc-BBBB`]' \
-  --profile okta-sso
+  --query 'VpcPeeringConnections[?RequesterVpcInfo.VpcId==`vpc-AAAA` && AccepterVpcInfo.VpcId==`vpc-BBBB`]'
 ```
 
 ---
 
 ## Summary
 
-**Current limitation:** Code only supports one VPC for all resources.
+**Current capability:** Single VPC deployment (working and tested)
 
-**What you need:** DCs in one VPC, clients in another (peering exists).
+**Future enhancement:** Multi-VPC support with separate DC and client VPCs
 
-**Quickest solution:**
-1. I add `dc_vpc_id`, `dc_subnets`, `client_vpc_id`, `client_subnets` variables
-2. Terraform uses them to place resources in correct VPCs
-3. Terraform creates security groups with correct CIDR rules
-4. Terraform does NOT create VPC peering (assumes it exists)
+**Key requirement:** VPC peering and routes must be configured by network team before deployment
 
-**Implementation time:** 15 minutes to add variables and update module calls.
+**Implementation effort:** Approximately 2-3 hours to add multi-VPC variable support
 
-**Want me to implement this?** I'll add the variables and update the Terraform code to support placing DCs and clients in different VPCs (without touching peering).
+**Ansible changes:** None required (works with any network topology)
