@@ -2,6 +2,15 @@
 
 **Automated deployment of multi-DC Active Directory forest on AWS and Azure** using Terraform + Ansible with **role-based architecture** that scales automatically.
 
+## 📚 Documentation
+
+| Document | Description |
+|----------|-------------|
+| **[GETTING_STARTED.md](GETTING_STARTED.md)** | **← Start here!** Complete setup guide for new users |
+| [README.md](README.md) | AWS deployment guide (this file) |
+| [AZURE_DEPLOYMENT.md](AZURE_DEPLOYMENT.md) | Azure deployment guide |
+| [PLATFORM_SELECTION_GUIDE.md](PLATFORM_SELECTION_GUIDE.md) | AWS vs Azure comparison |
+
 ## Cloud Platform Support
 
 | Platform | Status | Deployment Guide |
