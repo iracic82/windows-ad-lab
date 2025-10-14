@@ -13,8 +13,8 @@
   vars:
     domain_name: corp.infolab
     domain_netbios: CORP
-    domain_admin_user: "{{ domain_netbios }}\\Administrator"
-    domain_admin_password: "{{ ansible_password }}"
+    # domain_admin_user comes from inventory (Azure: CORP\azureadmin, AWS: defaults below)
+    # domain_admin_password comes from inventory
     # dc1_ip, dc2_ip, dns_forwarders come from inventory
 
     # WinRM stability settings
@@ -36,8 +36,6 @@
   vars:
     domain_name: corp.infolab
     domain_netbios: CORP
-    domain_admin_user: "{{ domain_netbios }}\\Administrator"
-    domain_admin_password: "{{ ansible_password }}"
 
     ansible_connection: winrm
     ansible_winrm_transport: ntlm
@@ -58,8 +56,6 @@
   vars:
     domain_name: corp.infolab
     domain_netbios: CORP
-    domain_admin_user: "{{ domain_netbios }}\\Administrator"
-    domain_admin_password: "{{ ansible_password }}"
 
     ansible_connection: winrm
     ansible_winrm_transport: ntlm
@@ -75,12 +71,11 @@
   hosts: windows_clients
   gather_facts: no
   strategy: linear
+  serial: 1  # One client at a time to avoid domain join conflicts
 
   vars:
     domain_name: corp.infolab
     domain_netbios: CORP
-    domain_admin_user: "{{ domain_netbios }}\\Administrator"
-    domain_admin_password: "{{ ansible_password }}"
 
     ansible_connection: winrm
     ansible_winrm_transport: ntlm

@@ -38,6 +38,17 @@ variable "domain_name" {
   type        = string
 }
 
+variable "domain_netbios" {
+  description = "Active Directory NetBIOS name"
+  type        = string
+  default     = "CORP"
+}
+
+variable "domain_admin_user" {
+  description = "Domain admin username (with NetBIOS prefix)"
+  type        = string
+}
+
 variable "output_path" {
   description = "Path where inventory file will be created"
   type        = string

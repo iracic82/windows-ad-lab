@@ -1,0 +1,85 @@
+# ============================================================================
+# Azure Windows Active Directory Lab - Configuration Example
+# ============================================================================
+# Copy this file to terraform.tfvars.azure and customize for your environment
+# Usage: terraform apply -var-file="terraform.tfvars.azure"
+# ============================================================================
+
+# ===================================
+# Azure Configuration
+# ===================================
+
+azure_subscription_id = "YOUR_SUBSCRIPTION_ID_HERE"
+azure_location        = "eastus"  # Change to your preferred region
+
+# ===================================
+# Project Configuration
+# ===================================
+
+project_name = "windows-ad-lab"
+environment  = "dev"
+
+# ===================================
+# Network Configuration - CHOOSE ONE SCENARIO
+# ===================================
+
+# SCENARIO 1: Create NEW VNets (Default - Recommended for new deployments)
+# -------------------------------------------------------------------------
+azure_use_existing_vnets = false
+
+# Specify CIDR blocks for the VNets that will be created
+azure_dc_vnet_cidr       = "10.0.0.0/16"
+azure_dc_subnet_cidr     = "10.0.1.0/24"
+azure_client_vnet_cidr   = "10.1.0.0/16"
+azure_client_subnet_cidr = "10.1.1.0/24"
+
+# SCENARIO 2: Use EXISTING VNets (Uncomment and configure if you have existing VNets)
+# -----------------------------------------------------------------------------------
+# azure_use_existing_vnets = true
+#
+# # Specify the resource group containing your existing VNets
+# azure_existing_resource_group_name = "my-existing-rg"
+#
+# # DC VNet and subnet names
+# azure_existing_dc_vnet_name   = "my-dc-vnet"
+# azure_existing_dc_subnet_name = "my-dc-subnet"
+#
+# # Client VNet and subnet names
+# azure_existing_client_vnet_name   = "my-client-vnet"
+# azure_existing_client_subnet_name = "my-client-subnet"
+
+# ===================================
+# Domain Configuration
+# ===================================
+
+domain_name           = "corp.infolab"
+domain_admin_password = "P@ssw0rd123!SecureAD"
+
+# ===================================
+# Scale Configuration
+# ===================================
+
+domain_controller_count = 2  # Number of DCs (minimum 1)
+client_count            = 2  # Number of clients (0 or more)
+
+# ===================================
+# VM Configuration
+# ===================================
+
+azure_dc_vm_size     = "Standard_D2s_v3"  # 2 vCPU, 8GB RAM
+azure_client_vm_size = "Standard_B2s"      # 2 vCPU, 4GB RAM
+azure_windows_sku    = "2022-datacenter-g2"
+root_volume_size     = 128
+
+# ===================================
+# Security Configuration
+# ===================================
+
+allowed_rdp_cidrs   = ["YOUR_IP/32"]  # Your public IP for RDP access
+allowed_winrm_cidrs = ["YOUR_IP/32"]  # Your public IP for Ansible
+
+# ===================================
+# Ansible Configuration
+# ===================================
+
+ansible_user = "Administrator"

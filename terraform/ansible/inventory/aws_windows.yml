@@ -1,0 +1,49 @@
+# Auto-generated Ansible Inventory by Terraform
+# Generated at: 2025-10-14T11:31:35Z
+# Domain: corp.infolab
+
+all:
+  vars:
+    ansible_user: Administrator
+    ansible_password: P@ssw0rd123!SecureAD
+    ansible_connection: winrm
+    ansible_winrm_transport: ntlm
+    ansible_winrm_server_cert_validation: ignore
+    ansible_port: 5985
+    domain_name: corp.infolab
+    domain_netbios: CORP
+    domain_admin_user: CORP\Administrator
+    domain_admin_password: P@ssw0rd123!SecureAD
+    dc1_ip: 10.10.10.5
+    dc2_ip: 10.10.10.6
+    dns_forwarders: [8.8.8.8, 1.1.1.1]
+
+  children:
+    windows:
+      hosts:
+        dc1:
+          ansible_host: 52.29.89.98
+          private_ip: 10.10.10.5
+          role: domain_controller
+        dc2:
+          ansible_host: 63.179.162.103
+          private_ip: 10.10.10.6
+          role: domain_controller
+        client1:
+          ansible_host: 3.74.85.79
+          private_ip: 10.10.10.7
+          role: domain_client
+        client2:
+          ansible_host: 3.126.184.1
+          private_ip: 10.10.10.8
+          role: domain_client
+
+    domain_controllers:
+      hosts:
+        dc1:
+        dc2:
+
+    windows_clients:
+      hosts:
+        client1:
+        client2:

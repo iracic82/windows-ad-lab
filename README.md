@@ -1,6 +1,19 @@
 # Windows Active Directory Lab - Scalable Deployment
 
-**Automated deployment of multi-DC Active Directory forest on AWS** using Terraform + Ansible with **role-based architecture** that scales automatically.
+**Automated deployment of multi-DC Active Directory forest on AWS and Azure** using Terraform + Ansible with **role-based architecture** that scales automatically.
+
+## Cloud Platform Support
+
+| Platform | Status | Deployment Guide |
+|----------|--------|------------------|
+| **AWS** | Production Ready | This README |
+| **Azure** | Production Ready | [AZURE_DEPLOYMENT.md](AZURE_DEPLOYMENT.md) |
+
+**Azure Features:**
+- DCs in dedicated VNet, Clients in separate VNet
+- Automatic VNet peering configuration
+- Network Security Groups with AD rules
+- Same Ansible playbooks work for both platforms
 
 ## 🎯 What This Deploys
 
@@ -38,15 +51,19 @@ playbooks/site.yml       # Orchestrator - scales automatically!
 ### Modular Terraform
 ```
 terraform/modules/
-├── windows-instance/    # Reusable EC2 module
-├── security-groups/     # AD-specific rules
-├── iam/                 # SSM policies
-└── ansible-inventory/   # Auto-generates inventory
+├── windows-instance/         # Reusable EC2 module (AWS)
+├── security-groups/          # AD-specific rules (AWS)
+├── iam/                      # SSM policies (AWS)
+├── azure-networking/         # VNets, peering, NSGs (Azure)
+├── azure-windows-vm/         # Reusable VM module (Azure)
+└── ansible-inventory/        # Auto-generates inventory (both)
 ```
 
 ---
 
-## 🚀 Quick Start
+## 🚀 Quick Start (AWS)
+
+For **Azure deployment**, see [AZURE_DEPLOYMENT.md](AZURE_DEPLOYMENT.md)
 
 ### Prerequisites
 ```bash
@@ -413,9 +430,10 @@ Deployment successful when:
 
 ## 📚 Documentation
 
-- **Quick Start:** This README
+- **AWS Quick Start:** This README
+- **Azure Deployment:** [AZURE_DEPLOYMENT.md](AZURE_DEPLOYMENT.md)
 - **Scaling Guide:** See "Scaling Made Easy" section above
-- **Multi-VPC:** See "Multi-VPC Setup" section above
+- **Multi-VPC/VNet:** See "Multi-VPC Setup" section above
 - **Troubleshooting:** See "Troubleshooting" section above
 
 ---
