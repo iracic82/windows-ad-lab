@@ -14,8 +14,9 @@ Quick reference to help you choose between AWS and Azure for your Windows AD Lab
 | Factor | AWS | Azure | Winner |
 |--------|-----|-------|--------|
 | **Cost** (2 DCs + 2 Clients) | ~$500/month | ~$295/month | Azure |
-| **Network Separation** | Automatic (multi-VPC with peering) | Automatic (separate VNets) | Tie |
-| **Setup Complexity** | Simple (existing VPC) | Medium (new VNets) | AWS |
+| **Network Flexibility** | 5 deployment scenarios | Separate VNets only | AWS |
+| **IP Customization** | Full control (custom IPs) | Auto-assigned | AWS |
+| **Setup Complexity** | Flexible (5 scenarios) | Medium (new VNets) | AWS |
 | **Windows Integration** | Good | Excellent (Microsoft) | Azure |
 | **Documentation** | Extensive | Extensive | Tie |
 | **Global Regions** | More regions | Fewer regions | AWS |
@@ -24,10 +25,12 @@ Quick reference to help you choose between AWS and Azure for your Windows AD Lab
 
 1. You already have an AWS account and VPC
 2. You want to use existing AWS resources (VPCs, subnets)
-3. Your organization standardizes on AWS
-4. You need deployment in more geographic regions
-5. You prefer AWS SSM for management
-6. You're familiar with AWS tooling
+3. You need flexible network architecture (5 scenarios supported)
+4. You want custom IP address control for DCs and clients
+5. Your organization standardizes on AWS
+6. You need deployment in more geographic regions
+7. You prefer AWS SSM for management
+8. You're familiar with AWS tooling
 
 ## Choose Azure If
 
@@ -41,21 +44,30 @@ Quick reference to help you choose between AWS and Azure for your Windows AD Lab
 ## Architecture Differences
 
 ### AWS Architecture
+
+**5 Deployment Scenarios Supported:**
+
+1. **Single Existing VPC** - Use one existing VPC for everything (simplest)
+2. **Two Existing VPCs** - Use separate existing VPCs for DCs and clients
+3. **Existing DC VPC + New Client VPC** - Keep DCs in existing VPC, create new VPC for clients (recommended)
+4. **New DC VPC + Existing Client VPC** - Create DC VPC, use existing client VPC
+5. **Two New VPCs** - Create both DC and client VPCs from scratch
+
 ```
-Single VPC or Multi-VPC (automatic peering)
-├── DC VPC (optional separate)
-│   ├── DC Subnets
-│   └── Domain Controllers
-├── Client VPC (optional separate)
-│   ├── Client Subnets
-│   └── Clients
-└── VPC Peering (auto-created if separate VPCs)
+Option 3 Example (Most Common):
+Existing DC VPC (10.10.0.0/16)    New Client VPC (10.11.0.0/16)
+├── DC Subnets (existing)         ├── Client Subnet (new)
+├── DC NSG                         ├── Client NSG
+└── Domain Controllers             └── Clients
+        └────── VPC Peering (auto-created) ──────┘
 ```
 
 **Pros:**
-- Flexible: single VPC or multi-VPC with automatic peering
+- Flexible: 5 deployment scenarios
 - Can reuse existing VPCs or create new ones
-- Mix-and-match existing/new VPCs (5 scenarios supported)
+- Custom IP addresses for all VMs
+- Mix-and-match existing/new VPCs
+- Single-step terraform apply (no manual peering)
 
 **Cons:**
 - More expensive than Azure
@@ -84,11 +96,17 @@ Both implementations support:
 
 - ✅ Auto-scaling DCs and Clients (change count variables)
 - ✅ Same Ansible playbooks
-- ✅ Static private IPs
+- ✅ Static private IPs (AWS: custom IPs, Azure: auto-assigned)
 - ✅ Public IPs for RDP access
 - ✅ Fully automated AD deployment
 - ✅ Idempotent (safe to re-run)
 - ✅ Production-ready
+- ✅ Network separation (VPCs/VNets with peering)
+
+AWS-only features:
+- ✅ Custom IP address assignment
+- ✅ 5 flexible deployment scenarios
+- ✅ Mix existing and new VPCs
 
 ## Cost Breakdown
 
@@ -159,16 +177,27 @@ Both platforms take similar time:
 
 ## Try Both!
 
-Since they use separate Terraform state files, you can deploy to both and compare:
+Since they use separate Terraform workspaces and state files, you can deploy to both and compare:
 
 ```bash
 # Deploy to AWS
-cd terraform
+cd terraform/aws
 terraform init
-terraform apply
+terraform apply  # Uses terraform.tfvars
 
 # Deploy to Azure
+cd ../azure
+terraform init
 terraform apply -var-file="terraform.tfvars.azure"
+```
+
+Or use the automated deployment scripts:
+```bash
+# AWS
+./deploy-aws.sh
+
+# Azure
+./deploy-azure.sh
 ```
 
 Both will generate separate Ansible inventories:
