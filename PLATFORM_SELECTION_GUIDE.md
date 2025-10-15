@@ -2,6 +2,13 @@
 
 Quick reference to help you choose between AWS and Azure for your Windows AD Lab deployment.
 
+**📚 Full Deployment Guides:**
+- **AWS:** [README.md](README.md)
+- **Azure:** [AZURE_DEPLOYMENT.md](AZURE_DEPLOYMENT.md)
+- **Setup:** [GETTING_STARTED.md](GETTING_STARTED.md)
+
+---
+
 ## Quick Comparison
 
 | Factor | AWS | Azure | Winner |

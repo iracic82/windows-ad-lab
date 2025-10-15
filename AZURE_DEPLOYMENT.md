@@ -1,6 +1,28 @@
 # Azure Deployment Guide - Windows Active Directory Lab
 
-This guide covers deploying the Windows Active Directory lab on **Azure** with Domain Controllers in one VNet and Clients in another VNet (with automatic VNet peering).
+This guide covers deploying the Windows Active Directory lab on **Azure**. For **AWS deployment**, see [README.md](README.md).
+
+## 📋 Quick Links
+
+| Resource | Link |
+|----------|------|
+| **AWS Deployment** | [README.md](README.md) |
+| **Platform Comparison** | [PLATFORM_SELECTION_GUIDE.md](PLATFORM_SELECTION_GUIDE.md) |
+| **Getting Started** | [GETTING_STARTED.md](GETTING_STARTED.md) |
+| **Technical Details** | [TECHNICAL_NOTES.md](TECHNICAL_NOTES.md) |
+
+---
+
+## Overview
+
+Deploy a multi-DC Active Directory forest on Azure with:
+- **Domain Controllers in dedicated VNet** (10.0.0.0/16)
+- **Clients in separate VNet** (10.1.0.0/16)
+- **Automatic VNet peering** between DC and Client VNets
+- **Same Ansible playbooks** as AWS deployment
+- **Lower cost** than AWS (~$295/month vs ~$500/month)
+
+---
 
 ## Architecture
 

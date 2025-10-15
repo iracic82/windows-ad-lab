@@ -1,28 +1,58 @@
-# Windows Active Directory Lab - Scalable Deployment
+# Windows Active Directory Lab - Multi-Cloud Deployment
 
 **Automated deployment of multi-DC Active Directory forest on AWS and Azure** using Terraform + Ansible with **role-based architecture** that scales automatically.
 
-## 📚 Documentation
+## 📚 Documentation Hub
 
+### Getting Started
 | Document | Description |
 |----------|-------------|
 | **[GETTING_STARTED.md](GETTING_STARTED.md)** | **← Start here!** Complete setup guide for new users |
-| [README.md](README.md) | AWS deployment guide (this file) |
-| [AZURE_DEPLOYMENT.md](AZURE_DEPLOYMENT.md) | Azure deployment guide |
-| [PLATFORM_SELECTION_GUIDE.md](PLATFORM_SELECTION_GUIDE.md) | AWS vs Azure comparison |
+| [PLATFORM_SELECTION_GUIDE.md](PLATFORM_SELECTION_GUIDE.md) | AWS vs Azure comparison - choose your platform |
+
+### Platform-Specific Deployment Guides
+| Platform | Status | Guide | Quick Link |
+|----------|--------|-------|------------|
+| **AWS** | ✅ Production Ready | This README | Deploy to existing VPC |
+| **Azure** | ✅ Production Ready | [AZURE_DEPLOYMENT.md](AZURE_DEPLOYMENT.md) | Deploy with VNet peering |
+
+### Technical Documentation
+| Document | Description |
+|----------|-------------|
+| [TECHNICAL_NOTES.md](TECHNICAL_NOTES.md) | Implementation details, critical fixes, troubleshooting |
+| [terraform/README.md](terraform/README.md) | Terraform workspace structure |
+| [docs/MULTI_VPC_*.md](docs/) | Advanced AWS multi-VPC setup (optional) |
+
+---
 
 ## Cloud Platform Support
 
-| Platform | Status | Deployment Guide |
-|----------|--------|------------------|
-| **AWS** | Production Ready | This README |
-| **Azure** | Production Ready | [AZURE_DEPLOYMENT.md](AZURE_DEPLOYMENT.md) |
+### AWS Deployment
+- **Best for:** Organizations with existing AWS infrastructure
+- **Network:** Single VPC or multi-VPC with peering
+- **Cost:** ~$500/month (2 DCs + 2 clients)
+- **Guide:** This README (sections below)
 
-**Azure Features:**
-- DCs in dedicated VNet, Clients in separate VNet
-- Automatic VNet peering configuration
-- Network Security Groups with AD rules
-- Same Ansible playbooks work for both platforms
+### Azure Deployment
+- **Best for:** Lower costs, native Microsoft integration
+- **Network:** Separate VNets with automatic peering
+- **Cost:** ~$295/month (2 DCs + 2 clients)
+- **Guide:** [AZURE_DEPLOYMENT.md](AZURE_DEPLOYMENT.md)
+
+### Key Differences
+| Feature | AWS | Azure |
+|---------|-----|-------|
+| **Networking** | VPC (manual peering) | VNet (auto peering) |
+| **Default Setup** | Same VPC for DCs and clients | Separate VNets |
+| **Configuration File** | `terraform.tfvars` | `terraform.tfvars.azure` |
+| **Inventory File** | `aws_windows.yml` | `azure_windows.yml` |
+| **Ansible Playbooks** | ✅ Same playbooks work for both platforms | ✅ Same playbooks work for both platforms |
+
+---
+
+# AWS Deployment Guide
+
+This section covers deploying to **AWS**. For Azure, see [AZURE_DEPLOYMENT.md](AZURE_DEPLOYMENT.md).
 
 ## 🎯 What This Deploys
 
@@ -87,40 +117,52 @@ terraform/
 
 ---
 
-## 🚀 Quick Start (AWS)
+## 🚀 Quick Start - AWS
 
-For **Azure deployment**, see [AZURE_DEPLOYMENT.md](AZURE_DEPLOYMENT.md)
+**Note:** This is the AWS deployment guide. For Azure, see [AZURE_DEPLOYMENT.md](AZURE_DEPLOYMENT.md).
 
 ### Prerequisites
 ```bash
-# Required
-aws --version           # AWS CLI with SSO
+# Required tools
+aws --version           # AWS CLI configured
 terraform --version     # >= 1.0
 ansible --version       # >= 2.12
 python3 -m pip install pywinrm
 
-# Ansible collections
+# Ansible collections (same for both AWS and Azure)
 ansible-galaxy collection install ansible.windows
 ansible-galaxy collection install microsoft.ad
 ```
 
-### 1. Deploy Infrastructure (5 min)
+**Complete setup instructions:** See [GETTING_STARTED.md](GETTING_STARTED.md) for detailed installation steps.
+
+### 1. Deploy Infrastructure to AWS (5-10 min)
 
 ```bash
-cd terraform
+# Navigate to AWS terraform workspace
+cd terraform/aws
 
-# Edit terraform.tfvars
+# Edit AWS configuration
 vim terraform.tfvars
 
 # Scale here!
 domain_controller_count = 3  # ← Change to 5, 10, etc.
 client_count            = 2  # ← Change to 0, 5, 10, etc.
 
-# Deploy
+# Required AWS variables:
+# - aws_region
+# - aws_profile
+# - vpc_id
+# - subnets
+# - key_name
+# - allowed_rdp_cidrs
+# - allowed_winrm_cidrs
+
+# Deploy to AWS
 terraform init
 terraform apply -auto-approve
 
-# Wait for boot
+# Wait for VMs to boot
 sleep 180
 ```
 
@@ -191,36 +233,52 @@ ansible-playbook -i inventory/aws_windows.yml playbooks/site.yml
 
 ---
 
-## 🛠️ Configuration
+## 🛠️ AWS Configuration
 
-### terraform.tfvars
+### AWS terraform.tfvars
+
+**Location:** `terraform/aws/terraform.tfvars`
 
 ```hcl
-# AWS
-aws_region  = "eu-central-1"
-aws_profile = "okta-sso"
+# ===================================
+# AWS Configuration
+# ===================================
+aws_region  = "eu-central-1"  # Your AWS region
+aws_profile = "okta-sso"      # Your AWS CLI profile
 
-# Network
-vpc_id = "vpc-xxxxx"
-subnets = ["subnet-xxxxx"]  # Single subnet OK
+# ===================================
+# Network Configuration
+# ===================================
+vpc_id  = "vpc-xxxxx"          # Your existing VPC
+subnets = ["subnet-xxxxx"]     # One or more subnets
 
-# Scale!
-domain_controller_count = 3  # 1-100+
-client_count            = 2  # 0-100+
+# ===================================
+# Scale Configuration
+# ===================================
+domain_controller_count = 3    # Number of DCs (1-100+)
+client_count            = 2    # Number of clients (0-100+)
 
-# Domain
+# ===================================
+# Domain Configuration
+# ===================================
 domain_name           = "corp.infolab"
-domain_admin_password = "P@ssw0rd123!SecureAD"
+domain_admin_password = "P@ssw0rd123!SecureAD"  # Change this!
 
-# Instances
-dc_instance_type     = "t3.large"   # 2 vCPU, 8GB
-client_instance_type = "t3.medium"  # 2 vCPU, 4GB
+# ===================================
+# Instance Configuration
+# ===================================
+dc_instance_type     = "t3.large"   # DCs: 2 vCPU, 8GB
+client_instance_type = "t3.medium"  # Clients: 2 vCPU, 4GB
 
-# Security
-key_name            = "infoblox-tme"
-allowed_rdp_cidrs   = ["YOUR.IP/32"]
-allowed_winrm_cidrs = ["YOUR.IP/32"]
+# ===================================
+# Security Configuration
+# ===================================
+key_name            = "your-key-name"
+allowed_rdp_cidrs   = ["YOUR.IP.HERE/32"]
+allowed_winrm_cidrs = ["YOUR.IP.HERE/32"]
 ```
+
+**For Azure configuration**, see [AZURE_DEPLOYMENT.md](AZURE_DEPLOYMENT.md) - uses `terraform/azure/terraform.tfvars.azure`
 
 ---
 
@@ -454,19 +512,44 @@ Deployment successful when:
 
 ---
 
-## 📚 Documentation
+---
 
-- **AWS Quick Start:** This README
-- **Azure Deployment:** [AZURE_DEPLOYMENT.md](AZURE_DEPLOYMENT.md)
-- **Scaling Guide:** See "Scaling Made Easy" section above
-- **Multi-VPC/VNet:** See "Multi-VPC Setup" section above
-- **Troubleshooting:** See "Troubleshooting" section above
+## 📚 Complete Documentation Index
+
+### Getting Started
+- **[GETTING_STARTED.md](GETTING_STARTED.md)** - Complete setup guide for new users
+- **[PLATFORM_SELECTION_GUIDE.md](PLATFORM_SELECTION_GUIDE.md)** - AWS vs Azure comparison
+
+### Deployment Guides
+- **This README** - AWS deployment guide
+- **[AZURE_DEPLOYMENT.md](AZURE_DEPLOYMENT.md)** - Azure deployment guide with VNet options
+
+### Technical Resources
+- **[TECHNICAL_NOTES.md](TECHNICAL_NOTES.md)** - Implementation details, fixes, troubleshooting
+- **[terraform/README.md](terraform/README.md)** - Terraform structure and workspaces
+- **[docs/MULTI_VPC_*.md](docs/)** - Advanced AWS multi-VPC setup (optional)
+
+---
+
+## 🌐 Azure Deployment
+
+This README covers **AWS deployment**. For **Azure deployment**:
+
+**👉 See [AZURE_DEPLOYMENT.md](AZURE_DEPLOYMENT.md) for complete Azure guide**
+
+**Key Azure differences:**
+- Uses `terraform/azure/` workspace with separate state
+- Configuration in `terraform.tfvars.azure`
+- Separate VNets for DCs and clients with automatic peering
+- Lower cost (~$295/month vs ~$500/month for AWS)
+- Inventory file: `ansible/inventory/azure_windows.yml`
+- Same Ansible playbooks work for both platforms
 
 ---
 
 ## 🤝 Contributing
 
-**Contributions are welcome:**
+Contributions are welcome:
 1. Fork the repository
 2. Create a feature branch
 3. Submit a pull request with tests
@@ -481,9 +564,10 @@ MIT License
 
 ## 🙏 Acknowledgments
 
-- Built on Terraform AWS Provider
+- Built on Terraform AWS and Azure providers
 - Uses Ansible Windows & Microsoft AD collections
 - Proven at scale with role-based architecture
+- Multi-cloud support with shared modules
 
 ---
 

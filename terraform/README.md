@@ -1,16 +1,58 @@
 # Windows Active Directory Lab - Terraform Infrastructure
 
-This Terraform project deploys a **scalable** Windows Active Directory environment on AWS with:
+This Terraform project deploys a **scalable** Windows Active Directory environment on **AWS** or **Azure** with:
 - **N Domain Controllers** (1-100+, auto-scales) with AD, DNS, and DHCP
 - **M Windows Client machines** (0-100+, configurable)
 - Automatic Ansible inventory generation
-- Full security group configuration
-- Flexible AWS profile support (Okta SSO, default, or custom profiles)
+- Full security configuration (Security Groups/NSGs)
+- **Multi-cloud support** with shared modules
 - **Role-based Ansible** that automatically scales with your infrastructure
 
-## Architecture
+## Multi-Cloud Architecture
 
-**⭐ Scalable Design:** Supports ANY number of DCs and clients!
+**🌐 Two Deployment Options:**
+
+1. **AWS** - Deploy to existing VPC (`terraform/aws/` workspace)
+2. **Azure** - Deploy with VNet peering (`terraform/azure/` workspace)
+
+**⭐ Scalable Design:** Supports ANY number of DCs and clients on both platforms!
+
+### Workspace Structure
+
+```
+terraform/
+├── aws/                      # AWS workspace (separate state)
+│   ├── main.tf
+│   ├── variables.tf
+│   ├── outputs.tf
+│   ├── terraform.tfvars      # AWS configuration
+│   └── modules -> ../modules # Symlink to shared modules
+│
+├── azure/                    # Azure workspace (separate state)
+│   ├── main.tf
+│   ├── variables.tf
+│   ├── outputs.tf
+│   ├── terraform.tfvars.azure  # Azure configuration
+│   └── modules -> ../modules   # Symlink to shared modules
+│
+└── modules/                  # Shared modules
+    ├── windows-instance/     # AWS EC2 instances
+    ├── security-groups/      # AWS security groups
+    ├── iam/                  # AWS IAM roles
+    ├── azure-networking/     # Azure VNets + NSGs
+    ├── azure-windows-vm/     # Azure VMs
+    └── ansible-inventory/    # Cross-platform inventory generation
+```
+
+**Key Design:**
+- Separate workspaces = independent state files
+- Shared modules via symlinks = code reuse
+- Platform-specific modules for cloud differences
+- Cross-platform Ansible inventory module
+
+## AWS Architecture
+
+**Best for:** Organizations with existing AWS infrastructure
 
 ```
 VPC (10.10.0.0/16)
@@ -38,7 +80,35 @@ VPC (10.10.0.0/16)
 5. **VPC** already created in AWS
 6. **EC2 Key Pair** for RDP access
 
-## Quick Start
+## Azure Architecture
+
+**Best for:** Lower costs, native Microsoft integration
+
+```
+DC VNet (10.0.0.0/16)           Client VNet (10.1.0.0/16)
+├── DC Subnet (10.0.1.0/24)     ├── Client Subnet (10.1.1.0/24)
+├── DC NSG                       ├── Client NSG
+├── DC1 (10.0.1.5)              ├── CLIENT1 (10.1.1.5)
+├── DC2 (10.0.1.6)              └── CLIENT2 (10.1.1.6) ...
+└── DC3 (10.0.1.7) ...
+        └────── VNet Peering ──────┘
+```
+
+**Key Features:**
+- Network separation by default
+- Automatic VNet peering
+- Lower cost (~$295/month vs ~$500/month for AWS)
+
+## Deployment Guides
+
+| Platform | Workspace | Guide |
+|----------|-----------|-------|
+| **AWS** | `terraform/aws/` | [README.md](../README.md) |
+| **Azure** | `terraform/azure/` | [AZURE_DEPLOYMENT.md](../AZURE_DEPLOYMENT.md) |
+
+---
+
+## Quick Start - AWS
 
 ### 1. Configure Your AWS Profile
 

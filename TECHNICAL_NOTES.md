@@ -1,8 +1,21 @@
 # Technical Notes and Critical Fixes
 
-This document captures important technical details, the critical fixes applied, and lessons learned during the development of this project.
+This document captures important technical details, critical fixes, and lessons learned during the development of this multi-cloud Windows AD Lab project.
 
-## Critical Fix: LDAP UDP Port 389
+## 🌐 Multi-Cloud Support
+
+This project supports both **AWS** and **Azure** deployments:
+
+- **AWS:** See [README.md](README.md) for AWS-specific deployment
+- **Azure:** See [AZURE_DEPLOYMENT.md](AZURE_DEPLOYMENT.md) for Azure-specific deployment
+- **Same Ansible playbooks:** Work for both platforms
+- **Platform-agnostic fixes:** Most technical notes below apply to both AWS and Azure
+
+**Note:** Unless otherwise specified, the technical details below apply to both platforms. Platform-specific notes are clearly marked.
+
+---
+
+## Critical Fix: LDAP UDP Port 389 (AWS/Azure)
 
 ### The Problem
 
