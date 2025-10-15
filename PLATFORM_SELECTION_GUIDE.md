@@ -14,7 +14,7 @@ Quick reference to help you choose between AWS and Azure for your Windows AD Lab
 | Factor | AWS | Azure | Winner |
 |--------|-----|-------|--------|
 | **Cost** (2 DCs + 2 Clients) | ~$500/month | ~$295/month | Azure |
-| **Network Separation** | Manual (VPC peering needed) | Built-in (separate VNets) | Azure |
+| **Network Separation** | Automatic (multi-VPC with peering) | Automatic (separate VNets) | Tie |
 | **Setup Complexity** | Simple (existing VPC) | Medium (new VNets) | AWS |
 | **Windows Integration** | Good | Excellent (Microsoft) | Azure |
 | **Documentation** | Extensive | Extensive | Tie |
@@ -42,20 +42,23 @@ Quick reference to help you choose between AWS and Azure for your Windows AD Lab
 
 ### AWS Architecture
 ```
-Single VPC (or multi-VPC with manual peering)
-├── Subnet(s) - shared by DCs and Clients
-├── Security Groups (separate for DCs and Clients)
-└── EC2 Instances (DCs + Clients)
+Single VPC or Multi-VPC (automatic peering)
+├── DC VPC (optional separate)
+│   ├── DC Subnets
+│   └── Domain Controllers
+├── Client VPC (optional separate)
+│   ├── Client Subnets
+│   └── Clients
+└── VPC Peering (auto-created if separate VPCs)
 ```
 
 **Pros:**
-- Simple: everything in one VPC
-- Can reuse existing VPCs
-- Security groups reference each other
+- Flexible: single VPC or multi-VPC with automatic peering
+- Can reuse existing VPCs or create new ones
+- Mix-and-match existing/new VPCs (5 scenarios supported)
 
 **Cons:**
-- Manual work for multi-VPC setup
-- More expensive
+- More expensive than Azure
 
 ### Azure Architecture
 ```

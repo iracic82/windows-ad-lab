@@ -1,11 +1,6 @@
 # ============================================================================
-# Security Groups Module - Variables (AWS Only)
+# VPC Peering Module - Variables
 # ============================================================================
-
-variable "project_name" {
-  description = "Project name for resource naming"
-  type        = string
-}
 
 variable "dc_vpc_id" {
   description = "VPC ID for Domain Controllers"
@@ -13,7 +8,7 @@ variable "dc_vpc_id" {
 }
 
 variable "client_vpc_id" {
-  description = "VPC ID for Clients (can be same as dc_vpc_id)"
+  description = "VPC ID for Clients"
   type        = string
 }
 
@@ -27,20 +22,9 @@ variable "client_vpc_cidr" {
   type        = string
 }
 
-variable "use_separate_vpcs" {
-  description = "Whether separate VPCs are being used for DCs and clients"
-  type        = bool
-  default     = false
-}
-
-variable "allowed_rdp_cidrs" {
-  description = "List of CIDR blocks allowed to RDP to instances"
-  type        = list(string)
-}
-
-variable "allowed_winrm_cidrs" {
-  description = "List of CIDR blocks allowed to WinRM to instances"
-  type        = list(string)
+variable "project_name" {
+  description = "Project name for resource naming"
+  type        = string
 }
 
 variable "common_tags" {

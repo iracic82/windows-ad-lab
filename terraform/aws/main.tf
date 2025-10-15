@@ -1,5 +1,5 @@
 # ============================================================================
-# AWS Windows Active Directory Lab - Modular Configuration
+# AWS Windows Active Directory Lab - Modular Configuration with Multi-VPC Support
 # ============================================================================
 
 terraform {
@@ -34,15 +34,9 @@ provider "aws" {
 # Data Sources
 # ============================================================================
 
-# Get VPC details
-data "aws_vpc" "selected" {
-  id = var.vpc_id
-}
-
-# Get subnet details for IP calculation
-data "aws_subnet" "selected" {
-  count = length(var.subnets)
-  id    = var.subnets[count.index]
+# Get availability zones for VPC creation
+data "aws_availability_zones" "available" {
+  state = "available"
 }
 
 # Get Windows Server 2025 AMI
@@ -71,6 +65,38 @@ data "aws_ami" "windows_2025" {
   }
 }
 
+# Get existing VPC details (when use_existing_vpcs = true)
+data "aws_vpc" "selected" {
+  count = var.use_existing_vpcs && !var.use_separate_vpcs ? 1 : 0
+  id    = var.vpc_id
+}
+
+data "aws_vpc" "dc_vpc" {
+  count = var.use_existing_vpcs && var.use_separate_vpcs ? 1 : 0
+  id    = var.existing_dc_vpc_id
+}
+
+data "aws_vpc" "client_vpc" {
+  count = var.use_existing_vpcs && var.use_separate_vpcs ? 1 : 0
+  id    = var.existing_client_vpc_id
+}
+
+# Get existing subnet details for IP calculation
+data "aws_subnet" "selected" {
+  count = var.use_existing_vpcs && !var.use_separate_vpcs ? length(var.subnets) : 0
+  id    = var.subnets[count.index]
+}
+
+data "aws_subnet" "dc_subnets" {
+  count = var.use_existing_vpcs && var.use_separate_vpcs ? length(var.existing_dc_subnets) : 0
+  id    = var.existing_dc_subnets[count.index]
+}
+
+data "aws_subnet" "client_subnets" {
+  count = var.use_existing_vpcs && var.use_separate_vpcs ? length(var.existing_client_subnets) : 0
+  id    = var.existing_client_subnets[count.index]
+}
+
 # ============================================================================
 # Local Variables
 # ============================================================================
@@ -84,18 +110,132 @@ locals {
     ManagedBy   = "Terraform"
   }
 
+  # Determine actual VPC IDs and CIDRs based on configuration mode
+  dc_vpc_id = (
+    !var.use_existing_vpcs && var.create_dc_vpc ? module.dc_vpc[0].vpc_id :
+    var.use_existing_vpcs && var.use_separate_vpcs ? var.existing_dc_vpc_id :
+    var.use_existing_vpcs && !var.use_separate_vpcs ? var.vpc_id :
+    ""
+  )
+
+  dc_vpc_cidr = (
+    !var.use_existing_vpcs && var.create_dc_vpc ? module.dc_vpc[0].vpc_cidr :
+    var.use_existing_vpcs && var.use_separate_vpcs ? data.aws_vpc.dc_vpc[0].cidr_block :
+    var.use_existing_vpcs && !var.use_separate_vpcs ? data.aws_vpc.selected[0].cidr_block :
+    ""
+  )
+
+  client_vpc_id = (
+    !var.use_existing_vpcs && var.use_separate_vpcs && var.create_client_vpc ? module.client_vpc[0].vpc_id :
+    !var.use_existing_vpcs && var.use_separate_vpcs && !var.create_client_vpc ? var.existing_client_vpc_id :
+    var.use_existing_vpcs && var.use_separate_vpcs ? var.existing_client_vpc_id :
+    local.dc_vpc_id  # Same VPC mode
+  )
+
+  client_vpc_cidr = (
+    !var.use_existing_vpcs && var.use_separate_vpcs && var.create_client_vpc ? module.client_vpc[0].vpc_cidr :
+    !var.use_existing_vpcs && var.use_separate_vpcs && !var.create_client_vpc ? data.aws_vpc.client_vpc[0].cidr_block :
+    var.use_existing_vpcs && var.use_separate_vpcs ? data.aws_vpc.client_vpc[0].cidr_block :
+    local.dc_vpc_cidr  # Same VPC mode
+  )
+
+  # Determine actual subnet IDs
+  dc_subnets = (
+    !var.use_existing_vpcs && var.create_dc_vpc ? [module.dc_vpc[0].subnet_id] :
+    var.use_existing_vpcs && var.use_separate_vpcs ? var.existing_dc_subnets :
+    var.use_existing_vpcs && !var.use_separate_vpcs ? var.subnets :
+    []
+  )
+
+  client_subnets = (
+    !var.use_existing_vpcs && var.use_separate_vpcs && var.create_client_vpc ? [module.client_vpc[0].subnet_id] :
+    !var.use_existing_vpcs && var.use_separate_vpcs && !var.create_client_vpc ? var.existing_client_subnets :
+    var.use_existing_vpcs && var.use_separate_vpcs ? var.existing_client_subnets :
+    local.dc_subnets  # Same VPC mode
+  )
+
+  # Determine subnet CIDR blocks for IP calculation
+  dc_subnet_cidrs = (
+    !var.use_existing_vpcs && var.create_dc_vpc ? [module.dc_vpc[0].subnet_cidr] :
+    var.use_existing_vpcs && var.use_separate_vpcs ? [for s in data.aws_subnet.dc_subnets : s.cidr_block] :
+    var.use_existing_vpcs && !var.use_separate_vpcs ? [for s in data.aws_subnet.selected : s.cidr_block] :
+    []
+  )
+
+  client_subnet_cidrs = (
+    !var.use_existing_vpcs && var.use_separate_vpcs && var.create_client_vpc ? [module.client_vpc[0].subnet_cidr] :
+    !var.use_existing_vpcs && var.use_separate_vpcs && !var.create_client_vpc ? [for s in data.aws_subnet.client_subnets : s.cidr_block] :
+    var.use_existing_vpcs && var.use_separate_vpcs ? [for s in data.aws_subnet.client_subnets : s.cidr_block] :
+    local.dc_subnet_cidrs  # Same VPC mode
+  )
+
+  # Check if VPC peering is needed
+  needs_peering = var.use_separate_vpcs && local.dc_vpc_id != local.client_vpc_id
+
   # Calculate private IPs for DCs (starting from .5)
-  # Use low IPs to avoid conflicts with existing resources
   dc_private_ips = [
     for idx in range(var.domain_controller_count) :
-    cidrhost(data.aws_subnet.selected[idx % length(var.subnets)].cidr_block, 5 + idx)
+    cidrhost(local.dc_subnet_cidrs[idx % length(local.dc_subnet_cidrs)], 5 + idx)
   ]
 
-  # Calculate private IPs for clients (starting from .8)
-  # Start after DCs to avoid IP conflicts
+  # Calculate private IPs for clients (starting from .5 for separate VPCs, after DCs for same VPC)
   client_private_ips = [
     for idx in range(var.client_count) :
-    cidrhost(data.aws_subnet.selected[idx % length(var.subnets)].cidr_block, 5 + var.domain_controller_count + idx)
+    cidrhost(
+      local.client_subnet_cidrs[idx % length(local.client_subnet_cidrs)],
+      var.use_separate_vpcs ? (5 + idx) : (5 + var.domain_controller_count + idx)
+    )
+  ]
+}
+
+# ============================================================================
+# VPC Creation (when use_existing_vpcs = false)
+# ============================================================================
+
+# Create DC VPC
+module "dc_vpc" {
+  count  = !var.use_existing_vpcs && var.create_dc_vpc ? 1 : 0
+  source = "./modules/aws-vpc"
+
+  vpc_cidr          = var.dc_vpc_cidr
+  subnet_cidr       = var.dc_subnet_cidr
+  vpc_name          = "dc"
+  project_name      = var.project_name
+  availability_zone = data.aws_availability_zones.available.names[0]
+  common_tags       = local.common_tags
+}
+
+# Create Client VPC (only when use_separate_vpcs = true)
+module "client_vpc" {
+  count  = !var.use_existing_vpcs && var.use_separate_vpcs && var.create_client_vpc ? 1 : 0
+  source = "./modules/aws-vpc"
+
+  vpc_cidr          = var.client_vpc_cidr
+  subnet_cidr       = var.client_subnet_cidr
+  vpc_name          = "client"
+  project_name      = var.project_name
+  availability_zone = data.aws_availability_zones.available.names[0]
+  common_tags       = local.common_tags
+}
+
+# ============================================================================
+# VPC Peering (when using separate VPCs)
+# ============================================================================
+
+module "vpc_peering" {
+  count  = local.needs_peering ? 1 : 0
+  source = "./modules/vpc-peering"
+
+  dc_vpc_id        = local.dc_vpc_id
+  client_vpc_id    = local.client_vpc_id
+  dc_vpc_cidr      = local.dc_vpc_cidr
+  client_vpc_cidr  = local.client_vpc_cidr
+  project_name     = var.project_name
+  common_tags      = local.common_tags
+
+  depends_on = [
+    module.dc_vpc,
+    module.client_vpc
   ]
 }
 
@@ -108,10 +248,19 @@ module "security_groups" {
   source = "./modules/security-groups"
 
   project_name        = var.project_name
-  vpc_id              = var.vpc_id
+  dc_vpc_id           = local.dc_vpc_id
+  client_vpc_id       = local.client_vpc_id
+  dc_vpc_cidr         = local.dc_vpc_cidr
+  client_vpc_cidr     = local.client_vpc_cidr
+  use_separate_vpcs   = var.use_separate_vpcs
   allowed_rdp_cidrs   = var.allowed_rdp_cidrs
   allowed_winrm_cidrs = var.allowed_winrm_cidrs
   common_tags         = local.common_tags
+
+  depends_on = [
+    module.dc_vpc,
+    module.client_vpc
+  ]
 }
 
 # IAM Module
@@ -132,7 +281,7 @@ module "domain_controllers" {
   role              = "domain_controller"
   ami_id            = local.windows_ami_id
   instance_type     = var.dc_instance_type
-  subnet_id         = var.subnets[count.index % length(var.subnets)]
+  subnet_id         = local.dc_subnets[count.index % length(local.dc_subnets)]
   private_ip        = local.dc_private_ips[count.index]
   security_group_id = module.security_groups.dc_sg_id
   iam_profile_name  = module.iam.instance_profile_name
@@ -144,7 +293,8 @@ module "domain_controllers" {
 
   depends_on = [
     module.security_groups,
-    module.iam
+    module.iam,
+    module.vpc_peering
   ]
 }
 
@@ -158,7 +308,7 @@ module "clients" {
   role              = "domain_client"
   ami_id            = local.windows_ami_id
   instance_type     = var.client_instance_type
-  subnet_id         = var.subnets[count.index % length(var.subnets)]
+  subnet_id         = local.client_subnets[count.index % length(local.client_subnets)]
   private_ip        = local.client_private_ips[count.index]
   security_group_id = module.security_groups.client_sg_id
   iam_profile_name  = module.iam.instance_profile_name
@@ -171,7 +321,8 @@ module "clients" {
 
   depends_on = [
     module.security_groups,
-    module.iam
+    module.iam,
+    module.vpc_peering
   ]
 }
 

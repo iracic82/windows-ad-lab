@@ -199,6 +199,78 @@ terraform output rdp_connection_info
 
 ---
 
+## 🌐 AWS Multi-VPC Deployment (NEW!)
+
+The AWS deployment now supports **flexible VPC configurations** - you can mix and match existing and new VPCs for Domain Controllers and Clients.
+
+### Supported Scenarios
+
+| Scenario | DCs | Clients | VPC Peering | Use Case |
+|----------|-----|---------|-------------|----------|
+| **1. Same Existing VPC** | Existing VPC | Same VPC | Not needed | Default (backward compatible) |
+| **2. Separate Existing VPCs** | Existing VPC | Different existing VPC | ✅ Auto-created | Integrate with existing infrastructure |
+| **3. Create Both New VPCs** | New VPC | New VPC | ✅ Auto-created | Greenfield deployment |
+| **4. Mix: Existing DC + New Client** | Existing VPC | New VPC | ✅ Auto-created | **Recommended for security segmentation** |
+| **5. Mix: New DC + Existing Client** | New VPC | Existing VPC | ✅ Auto-created | Reverse of scenario 4 |
+
+### Quick Configuration Guide
+
+Edit `terraform/aws/terraform.tfvars`:
+
+**Scenario 1: Same Existing VPC (Default)**
+```hcl
+use_existing_vpcs = true
+use_separate_vpcs = false
+vpc_id  = "vpc-xxxxx"
+subnets = ["subnet-xxxxx", "subnet-yyyyy"]
+```
+
+**Scenario 4: Existing DC VPC + New Client VPC (Recommended)**
+```hcl
+use_existing_vpcs = false  # We're creating Client VPC
+use_separate_vpcs = true
+create_dc_vpc     = false  # Use existing DC VPC
+create_client_vpc = true   # Create new Client VPC
+
+# Existing DC infrastructure
+existing_dc_vpc_id  = "vpc-0a7299af0067aff53"
+existing_dc_subnets = ["subnet-xxxxx", "subnet-yyyyy"]
+
+# New Client VPC (Terraform creates this)
+client_vpc_cidr    = "10.11.0.0/16"
+client_subnet_cidr = "10.11.11.0/24"
+```
+
+**Scenario 3: Create Both New VPCs**
+```hcl
+use_existing_vpcs = false
+use_separate_vpcs = true
+create_dc_vpc     = true
+create_client_vpc = true
+
+dc_vpc_cidr        = "10.10.0.0/16"
+dc_subnet_cidr     = "10.10.10.0/24"
+client_vpc_cidr    = "10.11.0.0/16"
+client_subnet_cidr = "10.11.11.0/24"
+```
+
+### What Happens Automatically
+
+When using separate VPCs, Terraform automatically:
+- ✅ Creates VPC peering connection (if VPCs differ)
+- ✅ Updates all route tables in both VPCs
+- ✅ Configures security groups for cross-VPC AD traffic
+- ✅ Enables all AD ports (LDAP, Kerberos, DNS, SMB, RPC, etc.)
+- ✅ Sets up bidirectional communication
+
+**No manual networking configuration required!**
+
+### Complete Configuration Examples
+
+See `terraform/aws/terraform.tfvars.example` for all 5 scenarios with detailed comments.
+
+---
+
 ## 📈 Scaling Made Easy
 
 ### Add 2 More DCs (Scale 3→5)
@@ -315,111 +387,6 @@ If verified, just re-run (idempotent):
 ```bash
 ansible-playbook -i inventory/aws_windows.yml playbooks/site.yml
 ```
-
----
-
-## 🌐 Multi-VPC Setup
-
-### Complexity Levels
-
-| Setup | Difficulty | Requirements |
-|-------|-----------|--------------|
-| **Single VPC** | Easy | Current setup ✅ |
-| **DCs in VPC-A, Clients in VPC-B** | Medium | VPC peering + routes |
-| **Multi-region DCs** | Hard | VPN/Direct Connect |
-
-### Multi-VPC Architecture (DCs + Clients in Different VPCs)
-
-**Is it hard?** **No** - just needs VPC peering.
-
-#### What You Need:
-
-1. **VPC Peering** between DC VPC and Client VPC
-2. **Route tables** updated on both sides
-3. **Security groups** allowing cross-VPC AD traffic
-
-#### Terraform Changes Required:
-
-```hcl
-# terraform/modules/vpc-peering/main.tf (NEW MODULE)
-resource "aws_vpc_peering_connection" "dc_to_client" {
-  vpc_id        = var.dc_vpc_id
-  peer_vpc_id   = var.client_vpc_id
-  auto_accept   = true
-
-  tags = {
-    Name = "${var.project_name}-dc-client-peering"
-  }
-}
-
-# Add routes
-resource "aws_route" "dc_to_client" {
-  route_table_id            = data.aws_route_table.dc_vpc.id
-  destination_cidr_block    = data.aws_vpc.client.cidr_block
-  vpc_peering_connection_id = aws_vpc_peering_connection.dc_to_client.id
-}
-
-resource "aws_route" "client_to_dc" {
-  route_table_id            = data.aws_route_table.client_vpc.id
-  destination_cidr_block    = data.aws_vpc.dc.cidr_block
-  vpc_peering_connection_id = aws_vpc_peering_connection.dc_to_client.id
-}
-```
-
-#### terraform.tfvars Changes:
-
-```hcl
-# DCs in VPC-A
-dc_vpc_id     = "vpc-111111"
-dc_subnets    = ["subnet-aaa"]
-
-# Clients in VPC-B
-client_vpc_id     = "vpc-222222"
-client_subnets    = ["subnet-bbb"]
-
-# Enable peering
-create_vpc_peering = true
-```
-
-#### Security Group Changes:
-
-```hcl
-# Allow AD traffic from CLIENT VPC CIDR (not just same VPC)
-resource "aws_vpc_security_group_ingress_rule" "dc_ldap_from_client_vpc" {
-  security_group_id = aws_security_group.domain_controllers.id
-  description       = "LDAP from Client VPC"
-  ip_protocol       = "tcp"
-  from_port         = 389
-  to_port           = 389
-  cidr_ipv4         = data.aws_vpc.client.cidr_block  # ← Client VPC CIDR
-}
-```
-
-**Ansible:** No changes needed. The playbook uses IPs from inventory regardless of VPC topology.
-
-#### Implementation Effort:
-
-- **Terraform refactor:** 2-3 hours (create vpc-peering module, update main.tf)
-- **Testing:** 1 hour
-- **Total:** Approximately half day
-
-#### Real-World Use Case:
-
-```
-VPC-A (10.10.0.0/16) - Production DCs
-├── DC1 (10.10.10.5)
-├── DC2 (10.10.10.6)
-└── DC3 (10.10.10.7)
-
-        ↕ VPC Peering
-
-VPC-B (10.20.0.0/16) - Application Servers
-├── APP-SERVER-1 (10.20.1.10) ← domain-joined
-├── APP-SERVER-2 (10.20.1.11) ← domain-joined
-└── APP-SERVER-3 (10.20.1.12) ← domain-joined
-```
-
-**Note:** Multi-VPC support can be implemented by adding the vpc-peering module and updating security group rules to use CIDR blocks. See `docs/MULTI_VPC_IMPLEMENTATION.md` and `docs/MULTI_VPC_EXISTING_PEERING.md` for detailed implementation guides.
 
 ---
 

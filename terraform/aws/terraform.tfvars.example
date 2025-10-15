@@ -1,0 +1,149 @@
+# ============================================================================
+# AWS Windows Active Directory Lab - Configuration Examples
+# ============================================================================
+# Copy this file to terraform.tfvars and customize for your environment
+#
+# This file demonstrates all supported VPC configuration modes:
+# - Scenario 1: Same Existing VPC (Default - Backward Compatible)
+# - Scenario 2: Separate Existing VPCs
+# - Scenario 3: Create Both New VPCs
+# - Scenario 4: Use Existing DC VPC + Create New Client VPC (Recommended!)
+# - Scenario 5: Create New DC VPC + Use Existing Client VPC
+# ============================================================================
+
+# ===================================
+# AWS Configuration
+# ===================================
+aws_region  = "eu-central-1"
+aws_profile = "okta-sso"  # or "default" for access keys
+
+# ===================================
+# Project Configuration
+# ===================================
+project_name = "windows-ad-lab"
+environment  = "dev"
+
+# ===================================
+# Domain Configuration
+# ===================================
+domain_name           = "corp.infolab"
+domain_admin_password = "P@ssw0rd123!SecureAD"  # CHANGE THIS!
+
+# ===================================
+# Scale Configuration
+# ===================================
+domain_controller_count = 2  # Number of Domain Controllers
+client_count            = 2  # Number of Windows clients
+
+# ===================================
+# Instance Configuration
+# ===================================
+dc_instance_type     = "t3.large"   # 2 vCPU, 8GB RAM
+client_instance_type = "t3.medium"  # 2 vCPU, 4GB RAM
+key_name             = "your-key-pair-name"  # Your EC2 key pair
+root_volume_size     = 50  # GB
+
+# ===================================
+# Security Configuration
+# ===================================
+# Get your IP: curl ifconfig.me
+allowed_rdp_cidrs   = ["YOUR.IP.HERE/32"]
+allowed_winrm_cidrs = ["YOUR.IP.HERE/32"]
+
+# ============================================================================
+# SCENARIO 1: Same Existing VPC (Default - Backward Compatible)
+# ============================================================================
+# Use this when you want DCs and Clients in the SAME existing VPC
+# This is the default behavior - same as before multi-VPC support
+
+use_existing_vpcs = true
+use_separate_vpcs = false
+
+# Provide your existing VPC and subnets
+vpc_id  = "vpc-xxxxxxxxxxxxx"
+subnets = ["subnet-xxxxxxxxxxxxx", "subnet-yyyyyyyyyyyyy"]
+
+# ============================================================================
+# SCENARIO 2: Separate Existing VPCs
+# ============================================================================
+# Use this when you have TWO existing VPCs and want DCs in one, Clients in another
+# VPC peering will be created automatically
+
+# use_existing_vpcs = true
+# use_separate_vpcs = true
+
+# existing_dc_vpc_id      = "vpc-xxxxxxxxxxxxx"
+# existing_dc_subnets     = ["subnet-xxxxxxxxxxxxx", "subnet-yyyyyyyyyyyyy"]
+# existing_client_vpc_id  = "vpc-zzzzzzzzzzzzz"  # Can be same as DC VPC
+# existing_client_subnets = ["subnet-aaaaaaaaaaa", "subnet-bbbbbbbbbbb"]
+
+# ============================================================================
+# SCENARIO 3: Create Both New VPCs
+# ============================================================================
+# Use this for a completely new deployment with dedicated VPCs
+# Terraform will create both VPCs with VNet peering
+
+# use_existing_vpcs = false
+# use_separate_vpcs = true
+# create_dc_vpc     = true
+# create_client_vpc = true
+
+# dc_vpc_cidr       = "10.10.0.0/16"
+# dc_subnet_cidr    = "10.10.10.0/24"
+# client_vpc_cidr   = "10.11.0.0/16"
+# client_subnet_cidr = "10.11.11.0/24"
+
+# ============================================================================
+# SCENARIO 4: Use Existing DC VPC + Create New Client VPC (RECOMMENDED!)
+# ============================================================================
+# Use this when you have an existing VPC for DCs but want isolated Client VPC
+# This is a common pattern for security segmentation
+#
+# Example: Using real VPC vpc-0a7299af0067aff53 in eu-central-1
+#   - DCs: Existing VPC (10.10.10.0/24) with 2 subnets
+#   - Clients: New VPC (10.11.0.0/16) created by Terraform
+#   - VPC peering: Automatically created
+
+# use_existing_vpcs = false  # We're creating Client VPC
+# use_separate_vpcs = true   # DCs and Clients in different VPCs
+# create_dc_vpc     = false  # Use existing DC VPC
+# create_client_vpc = true   # Create new Client VPC
+
+# # Existing DC VPC (your real infrastructure)
+# existing_dc_vpc_id  = "vpc-0a7299af0067aff53"
+# existing_dc_subnets = [
+#   "subnet-0a9f063607662c0f0",  # eu-central-1b (10.10.10.0/28)
+#   "subnet-0d0044ce1fabf4833"   # eu-central-1c (10.10.10.64/28)
+# ]
+
+# # New Client VPC (Terraform will create)
+# client_vpc_cidr    = "10.11.0.0/16"
+# client_subnet_cidr = "10.11.11.0/24"
+
+# ============================================================================
+# SCENARIO 5: Create New DC VPC + Use Existing Client VPC
+# ============================================================================
+# Use this when you want new DC infrastructure but clients in existing VPC
+
+# use_existing_vpcs   = false  # We're creating DC VPC
+# use_separate_vpcs   = true
+# create_dc_vpc       = true   # Create new DC VPC
+# create_client_vpc   = false  # Use existing Client VPC
+
+# # New DC VPC (Terraform will create)
+# dc_vpc_cidr    = "10.10.0.0/16"
+# dc_subnet_cidr = "10.10.10.0/24"
+
+# # Existing Client VPC
+# existing_client_vpc_id  = "vpc-xxxxxxxxxxxxx"
+# existing_client_subnets = ["subnet-xxxxxxxxxxxxx"]
+
+# ============================================================================
+# Advanced Configuration
+# ============================================================================
+
+# Windows AMI (leave empty for latest Windows Server 2025)
+# windows_ami = ""
+
+# Ansible Configuration
+# ansible_user = "Administrator"

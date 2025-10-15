@@ -35,22 +35,100 @@ variable "environment" {
 }
 
 # ===================================
-# Network Configuration - SIMPLIFIED!
+# Network Configuration
 # ===================================
 
+# -------------------------------------
+# VPC Configuration Mode
+# -------------------------------------
+variable "use_existing_vpcs" {
+  description = "Use existing VPCs instead of creating new ones"
+  type        = bool
+  default     = true  # Backward compatible - default to existing VPCs
+}
+
+variable "use_separate_vpcs" {
+  description = "Use separate VPCs for DCs and Clients (if false, both use same VPC)"
+  type        = bool
+  default     = false
+}
+
+# -------------------------------------
+# Existing VPC Configuration (when use_existing_vpcs = true)
+# -------------------------------------
 variable "vpc_id" {
-  description = "VPC ID where resources will be deployed"
+  description = "Existing VPC ID for single VPC deployment (when use_separate_vpcs = false)"
   type        = string
+  default     = ""
 }
 
 variable "subnets" {
-  description = "List of subnet IDs for instance deployment (round-robin distribution)"
+  description = "Existing subnet IDs for single VPC deployment (round-robin distribution)"
   type        = list(string)
+  default     = []
+}
 
-  validation {
-    condition     = length(var.subnets) >= 1
-    error_message = "At least one subnet must be provided."
-  }
+variable "existing_dc_vpc_id" {
+  description = "Existing VPC ID for Domain Controllers (when use_separate_vpcs = true)"
+  type        = string
+  default     = ""
+}
+
+variable "existing_dc_subnets" {
+  description = "Existing subnet IDs for Domain Controllers in separate VPC mode"
+  type        = list(string)
+  default     = []
+}
+
+variable "existing_client_vpc_id" {
+  description = "Existing VPC ID for Clients (when use_separate_vpcs = true, can be same as dc_vpc_id)"
+  type        = string
+  default     = ""
+}
+
+variable "existing_client_subnets" {
+  description = "Existing subnet IDs for Clients in separate VPC mode"
+  type        = list(string)
+  default     = []
+}
+
+# -------------------------------------
+# New VPC Configuration (when use_existing_vpcs = false)
+# -------------------------------------
+variable "create_dc_vpc" {
+  description = "Create new VPC for Domain Controllers (when use_existing_vpcs = false)"
+  type        = bool
+  default     = true
+}
+
+variable "dc_vpc_cidr" {
+  description = "CIDR block for DC VPC (when creating new VPC)"
+  type        = string
+  default     = "10.10.0.0/16"
+}
+
+variable "dc_subnet_cidr" {
+  description = "CIDR block for DC subnet (when creating new VPC)"
+  type        = string
+  default     = "10.10.10.0/24"
+}
+
+variable "create_client_vpc" {
+  description = "Create new VPC for Clients (when use_existing_vpcs = false and use_separate_vpcs = true)"
+  type        = bool
+  default     = true
+}
+
+variable "client_vpc_cidr" {
+  description = "CIDR block for Client VPC (when creating new VPC)"
+  type        = string
+  default     = "10.11.0.0/16"
+}
+
+variable "client_subnet_cidr" {
+  description = "CIDR block for Client subnet (when creating new VPC)"
+  type        = string
+  default     = "10.11.11.0/24"
 }
 
 # ===================================

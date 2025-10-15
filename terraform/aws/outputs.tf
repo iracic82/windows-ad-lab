@@ -6,14 +6,41 @@
 # VPC Information
 # ===================================
 
-output "vpc_id" {
-  description = "VPC ID"
-  value       = data.aws_vpc.selected.id
+output "dc_vpc_id" {
+  description = "DC VPC ID"
+  value       = local.dc_vpc_id
 }
 
-output "vpc_cidr" {
-  description = "VPC CIDR block"
-  value       = data.aws_vpc.selected.cidr_block
+output "dc_vpc_cidr" {
+  description = "DC VPC CIDR block"
+  value       = local.dc_vpc_cidr
+}
+
+output "client_vpc_id" {
+  description = "Client VPC ID"
+  value       = local.client_vpc_id
+}
+
+output "client_vpc_cidr" {
+  description = "Client VPC CIDR block"
+  value       = local.client_vpc_cidr
+}
+
+output "vpc_peering_id" {
+  description = "VPC Peering connection ID (if separate VPCs)"
+  value       = local.needs_peering ? module.vpc_peering[0].peering_connection_id : null
+}
+
+output "vpc_peering_status" {
+  description = "VPC Peering connection status (if separate VPCs)"
+  value       = local.needs_peering ? module.vpc_peering[0].peering_status : null
+}
+
+output "network_mode" {
+  description = "Network deployment mode"
+  value = var.use_separate_vpcs ? (
+    local.dc_vpc_id == local.client_vpc_id ? "Separate VPCs (same VPC used)" : "Separate VPCs with peering"
+  ) : "Single VPC"
 }
 
 # ===================================
@@ -137,9 +164,12 @@ output "deployment_summary" {
   Deployment Complete!
   ========================================
 
+  Network Mode: ${var.use_separate_vpcs ? "Separate VPCs" : "Single VPC"}
+  ${var.use_separate_vpcs ? "VPC Peering: ${local.needs_peering ? "Enabled" : "Not needed (same VPC)"}" : ""}
+
   Domain: ${var.domain_name}
-  Domain Controllers: ${var.domain_controller_count}
-  Clients: ${var.client_count}
+  Domain Controllers: ${var.domain_controller_count} (VPC: ${local.dc_vpc_id})
+  Clients: ${var.client_count} (VPC: ${local.client_vpc_id})
 
   Domain Controller IPs:
   ${join("\n  ", [for dc in module.domain_controllers : "${dc.name}: ${dc.public_ip} (private: ${dc.private_ip})"])}
@@ -150,7 +180,7 @@ output "deployment_summary" {
   Next Steps:
   1. Wait 3 minutes for instances to boot: sleep 180
   2. Test connectivity: cd ../ansible && ansible all -i inventory/aws_windows.yml -m win_ping
-  3. Run Ansible playbook: ansible-playbook -i inventory/aws_windows.yml playbooks/configure-ad-domain-improved.yml
+  3. Run Ansible playbook: ansible-playbook -i inventory/aws_windows.yml playbooks/site.yml
 
   ========================================
   EOT
