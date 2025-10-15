@@ -59,14 +59,31 @@ playbooks/site.yml       # Orchestrator - scales automatically!
 
 ### Modular Terraform
 ```
-terraform/modules/
-├── windows-instance/         # Reusable EC2 module (AWS)
-├── security-groups/          # AD-specific rules (AWS)
-├── iam/                      # SSM policies (AWS)
-├── azure-networking/         # VNets, peering, NSGs (Azure)
-├── azure-windows-vm/         # Reusable VM module (Azure)
-└── ansible-inventory/        # Auto-generates inventory (both)
+terraform/
+├── aws/                      # AWS workspace
+│   ├── main.tf
+│   ├── variables.tf
+│   ├── outputs.tf
+│   ├── terraform.tfvars
+│   └── modules -> ../modules   # Symlink to shared modules
+│
+├── azure/                    # Azure workspace
+│   ├── main.tf
+│   ├── variables.tf
+│   ├── outputs.tf
+│   ├── terraform.tfvars.azure
+│   └── modules -> ../modules   # Symlink to shared modules
+│
+└── modules/                  # Shared modules (via symlinks)
+    ├── windows-instance/         # AWS EC2 instances
+    ├── security-groups/          # AWS security groups
+    ├── iam/                      # AWS IAM roles
+    ├── azure-networking/         # Azure VNets + NSGs
+    ├── azure-windows-vm/         # Azure VMs
+    └── ansible-inventory/        # Cross-platform inventory generation
 ```
+
+**Key Design:** Separate workspaces share common modules via symlinks, enabling independent state files while reusing code.
 
 ---
 
