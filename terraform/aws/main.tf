@@ -65,19 +65,19 @@ data "aws_ami" "windows_2025" {
   }
 }
 
-# Get existing VPC details (when use_existing_vpcs = true)
+# Get existing VPC details
 data "aws_vpc" "selected" {
   count = var.use_existing_vpcs && !var.use_separate_vpcs ? 1 : 0
   id    = var.vpc_id
 }
 
 data "aws_vpc" "dc_vpc" {
-  count = var.use_existing_vpcs && var.use_separate_vpcs ? 1 : 0
+  count = (var.use_existing_vpcs && var.use_separate_vpcs) || (!var.use_existing_vpcs && var.use_separate_vpcs && !var.create_dc_vpc) ? 1 : 0
   id    = var.existing_dc_vpc_id
 }
 
 data "aws_vpc" "client_vpc" {
-  count = var.use_existing_vpcs && var.use_separate_vpcs ? 1 : 0
+  count = (var.use_existing_vpcs && var.use_separate_vpcs) || (!var.use_existing_vpcs && var.use_separate_vpcs && !var.create_client_vpc) ? 1 : 0
   id    = var.existing_client_vpc_id
 }
 
@@ -88,12 +88,12 @@ data "aws_subnet" "selected" {
 }
 
 data "aws_subnet" "dc_subnets" {
-  count = var.use_existing_vpcs && var.use_separate_vpcs ? length(var.existing_dc_subnets) : 0
+  count = (var.use_existing_vpcs && var.use_separate_vpcs) || (!var.use_existing_vpcs && var.use_separate_vpcs && !var.create_dc_vpc) ? length(var.existing_dc_subnets) : 0
   id    = var.existing_dc_subnets[count.index]
 }
 
 data "aws_subnet" "client_subnets" {
-  count = var.use_existing_vpcs && var.use_separate_vpcs ? length(var.existing_client_subnets) : 0
+  count = (var.use_existing_vpcs && var.use_separate_vpcs) || (!var.use_existing_vpcs && var.use_separate_vpcs && !var.create_client_vpc) ? length(var.existing_client_subnets) : 0
   id    = var.existing_client_subnets[count.index]
 }
 
@@ -113,6 +113,7 @@ locals {
   # Determine actual VPC IDs and CIDRs based on configuration mode
   dc_vpc_id = (
     !var.use_existing_vpcs && var.create_dc_vpc ? module.dc_vpc[0].vpc_id :
+    !var.use_existing_vpcs && var.use_separate_vpcs && !var.create_dc_vpc ? var.existing_dc_vpc_id :
     var.use_existing_vpcs && var.use_separate_vpcs ? var.existing_dc_vpc_id :
     var.use_existing_vpcs && !var.use_separate_vpcs ? var.vpc_id :
     ""
@@ -120,6 +121,7 @@ locals {
 
   dc_vpc_cidr = (
     !var.use_existing_vpcs && var.create_dc_vpc ? module.dc_vpc[0].vpc_cidr :
+    !var.use_existing_vpcs && var.use_separate_vpcs && !var.create_dc_vpc ? data.aws_vpc.dc_vpc[0].cidr_block :
     var.use_existing_vpcs && var.use_separate_vpcs ? data.aws_vpc.dc_vpc[0].cidr_block :
     var.use_existing_vpcs && !var.use_separate_vpcs ? data.aws_vpc.selected[0].cidr_block :
     ""
@@ -142,6 +144,7 @@ locals {
   # Determine actual subnet IDs
   dc_subnets = (
     !var.use_existing_vpcs && var.create_dc_vpc ? [module.dc_vpc[0].subnet_id] :
+    !var.use_existing_vpcs && var.use_separate_vpcs && !var.create_dc_vpc ? var.existing_dc_subnets :
     var.use_existing_vpcs && var.use_separate_vpcs ? var.existing_dc_subnets :
     var.use_existing_vpcs && !var.use_separate_vpcs ? var.subnets :
     []
@@ -157,6 +160,7 @@ locals {
   # Determine subnet CIDR blocks for IP calculation
   dc_subnet_cidrs = (
     !var.use_existing_vpcs && var.create_dc_vpc ? [module.dc_vpc[0].subnet_cidr] :
+    !var.use_existing_vpcs && var.use_separate_vpcs && !var.create_dc_vpc ? [for s in data.aws_subnet.dc_subnets : s.cidr_block] :
     var.use_existing_vpcs && var.use_separate_vpcs ? [for s in data.aws_subnet.dc_subnets : s.cidr_block] :
     var.use_existing_vpcs && !var.use_separate_vpcs ? [for s in data.aws_subnet.selected : s.cidr_block] :
     []
@@ -169,21 +173,21 @@ locals {
     local.dc_subnet_cidrs  # Same VPC mode
   )
 
-  # Check if VPC peering is needed
-  needs_peering = var.use_separate_vpcs && local.dc_vpc_id != local.client_vpc_id
+  # Check if VPC peering is needed - use variable-based logic instead of resource attributes
+  needs_peering = var.use_separate_vpcs
 
-  # Calculate private IPs for DCs (starting from .5)
-  dc_private_ips = [
+  # Calculate private IPs for DCs - use custom IPs if provided, otherwise auto-calculate
+  dc_private_ips = length(var.dc_private_ips) > 0 ? var.dc_private_ips : [
     for idx in range(var.domain_controller_count) :
-    cidrhost(local.dc_subnet_cidrs[idx % length(local.dc_subnet_cidrs)], 5 + idx)
+    cidrhost(local.dc_subnet_cidrs[idx % length(local.dc_subnet_cidrs)], var.dc_ip_start_offset + idx)
   ]
 
-  # Calculate private IPs for clients (starting from .5 for separate VPCs, after DCs for same VPC)
-  client_private_ips = [
+  # Calculate private IPs for clients - use custom IPs if provided, otherwise auto-calculate
+  client_private_ips = length(var.client_private_ips) > 0 ? var.client_private_ips : [
     for idx in range(var.client_count) :
     cidrhost(
       local.client_subnet_cidrs[idx % length(local.client_subnet_cidrs)],
-      var.use_separate_vpcs ? (5 + idx) : (5 + var.domain_controller_count + idx)
+      var.use_separate_vpcs ? (var.client_ip_start_offset + idx) : (var.dc_ip_start_offset + var.domain_controller_count + idx)
     )
   ]
 }

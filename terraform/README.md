@@ -54,22 +54,43 @@ terraform/
 
 **Best for:** Organizations with existing AWS infrastructure
 
+### Multi-VPC Support (NEW!)
+
+The AWS deployment now supports **5 flexible deployment scenarios:**
+
+**Scenario 1: Single VPC (Same VPC for DCs and Clients)**
 ```
 VPC (10.10.0.0/16)
-├── Subnet 1 (example)
+├── Subnet 1
 │   ├── DC1 (10.10.10.5) - Forest Root
 │   ├── DC2 (10.10.10.6) - Additional DC + Global Catalog
-│   ├── DC3 (10.10.10.7) - Additional DC + Global Catalog
-│   ├── DC4, DC5... (auto-scales based on domain_controller_count)
-│   └── Clients (auto-scales based on client_count)
-└── More subnets for HA (optional, round-robin distribution)
+│   └── Clients (10.10.10.7+)
+└── Subnet 2 (optional, HA deployment)
 ```
+
+**Scenario 2-5: Separate VPCs with Peering**
+```
+DC VPC (10.10.0.0/16)              Client VPC (10.11.0.0/16)
+├── DC Subnet                       ├── Client Subnet
+├── DC1 (10.10.10.10)              ├── CLIENT1 (10.11.11.5)
+├── DC2 (10.10.10.71)              └── CLIENT2 (10.11.11.6)
+└───── VPC Peering (automatic) ─────┘
+```
+
+**Supported Scenarios:**
+1. **Existing VPC** - DCs and Clients in same existing VPC
+2. **New VPC** - Create new VPC for both DCs and Clients
+3. **New DC VPC + New Client VPC** - Create both VPCs
+4. **Existing DC VPC + New Client VPC** - Use existing DC VPC, create Client VPC
+5. **New DC VPC + Existing Client VPC** - Create DC VPC, use existing Client VPC
 
 **Key Features:**
 - First DC automatically becomes forest root
 - Additional DCs join domain and promote automatically
 - All DCs are Global Catalog servers
-- Clients distributed across subnets in round-robin fashion
+- Automatic VPC peering when using separate VPCs
+- Full cross-VPC connectivity with security groups
+- Flexible IP address customization
 
 ## Prerequisites
 
@@ -215,28 +236,41 @@ subnet_clients = [
 
 Clients are distributed across subnets in round-robin fashion.
 
-### IP Address Configuration
+### IP Address Configuration (NEW!)
 
-**Fixed IPs (recommended for DCs):**
+The infrastructure supports both **manual** and **automatic** IP assignment for all instances.
+
+**Option 1: Manual IP Assignment (Recommended for Production)**
 ```hcl
-dc1_private_ip = "10.100.1.100"
-dc2_private_ip = "10.100.2.100"
+# Specify exact IPs for Domain Controllers
+dc_private_ips = ["10.10.10.10", "10.10.10.71"]
+
+# Specify exact IPs for Clients
+client_private_ips = ["10.11.11.5", "10.11.11.6"]
 ```
 
-**Auto-assigned IPs (recommended for clients):**
+**Option 2: Automatic IP Assignment (Simplest)**
 ```hcl
-client_private_ips = []  # AWS assigns IPs automatically
+# Leave empty to auto-calculate IPs
+dc_private_ips     = []  # Will use dc_ip_start_offset
+client_private_ips = []  # Will use client_ip_start_offset
 ```
 
-**Fixed IPs for clients (optional):**
+**Option 3: Automatic with Custom Offsets**
 ```hcl
-client_private_ips = [
-  "10.100.1.101",
-  "10.100.1.102",
-  "10.100.2.101",
-  "10.100.2.102"
-]
+# Control starting IP addresses
+dc_ip_start_offset     = 10  # DCs get .10, .11, .12...
+client_ip_start_offset = 20  # Clients get .20, .21, .22...
+
+dc_private_ips     = []  # Empty = auto-calculate
+client_private_ips = []  # Empty = auto-calculate
 ```
+
+**Important Notes:**
+- Manual IPs must be within your subnet ranges
+- For /28 subnets: avoid .0 (network) and .15/.31/.etc (broadcast)
+- Manual IPs take precedence over automatic calculation
+- DCs should always have static IPs for DNS stability
 
 ### Instance Configuration
 
@@ -613,6 +647,12 @@ Internal use only - Configure according to your organization's policies.
 
 ---
 
-**Last Updated:** 2025-10-13
+**Last Updated:** 2025-10-15
 **Terraform Version:** >= 1.5.0
 **AWS Provider Version:** ~> 5.0
+
+## Recent Updates
+
+- **2025-10-15**: Added multi-VPC support with 5 deployment scenarios
+- **2025-10-15**: Added comprehensive IP address customization (manual + automatic)
+- **2025-10-15**: Fixed single-step terraform apply (no more two-step deployments)

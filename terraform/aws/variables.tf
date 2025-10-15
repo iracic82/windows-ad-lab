@@ -219,6 +219,34 @@ variable "allowed_winrm_cidrs" {
 }
 
 # ===================================
+# IP Address Customization
+# ===================================
+
+variable "dc_private_ips" {
+  description = "List of private IP addresses for Domain Controllers (optional - will auto-calculate if not provided)"
+  type        = list(string)
+  default     = []
+}
+
+variable "client_private_ips" {
+  description = "List of private IP addresses for Clients (optional - will auto-calculate if not provided)"
+  type        = list(string)
+  default     = []
+}
+
+variable "dc_ip_start_offset" {
+  description = "Starting IP offset for auto-calculated DC IPs (e.g., 5 means .5, .6, .7...)"
+  type        = number
+  default     = 5
+}
+
+variable "client_ip_start_offset" {
+  description = "Starting IP offset for auto-calculated Client IPs (e.g., 5 means .5, .6, .7... or after DCs if same VPC)"
+  type        = number
+  default     = 5
+}
+
+# ===================================
 # Ansible Configuration
 # ===================================
 
