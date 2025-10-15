@@ -86,12 +86,12 @@ echo "Testing Connectivity"
 echo "========================================"
 cd ../../ansible
 export OBJC_DISABLE_INITIALIZE_FORK_SAFETY=YES
-ansible all -i inventory/azure_windows.yml -m win_ping
+ansible all -i ../terraform/ansible/inventory/azure_windows.yml -m win_ping
 
 echo ""
 echo -e "${GREEN}✓ Deployment complete!${NC}"
 echo ""
 echo "Next steps:"
-echo "  1. Configure AD: cd ansible && ansible-playbook -i inventory/azure_windows.yml playbooks/site.yml"
+echo "  1. Configure AD: cd ansible && ansible-playbook -i ../terraform/ansible/inventory/azure_windows.yml playbooks/site.yml"
 echo "  2. Get RDP info: cd terraform/azure && terraform output azure_rdp_connection_info"
 echo "  3. Cleanup: cd terraform/azure && terraform destroy -var-file='terraform.tfvars.azure'"
