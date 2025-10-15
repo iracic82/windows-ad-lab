@@ -47,3 +47,19 @@ terraform.rc
 # Backup files
 *.backup
 *.bak
+
+# Old/unused terraform files (pre-workspace refactoring)
+azure-main.tf
+azure-outputs.tf
+azure-variables.tf
+main.tf.aws
+main.tf.old
+main.tf.old2
+outputs.tf.aws
+outputs.tf.old
+variables.tf.aws
+variables.tf.old
+terraform.tfvars.example.old
+
+# Log files
+*.log
