@@ -2,27 +2,26 @@
 
 **Automated deployment of multi-DC Active Directory forest on AWS and Azure** using Terraform + Ansible with **role-based architecture** that scales automatically.
 
-## 📚 Documentation Hub
+## Documentation Hub
 
 ### Getting Started
 | Document | Description |
 |----------|-------------|
-| **[GETTING_STARTED.md](GETTING_STARTED.md)** | **← Start here!** Complete setup guide for new users |
-| [PLATFORM_SELECTION_GUIDE.md](PLATFORM_SELECTION_GUIDE.md) | AWS vs Azure comparison - choose your platform |
+| **[GETTING_STARTED.md](GETTING_STARTED.md)** | Complete setup guide for new users |
+| [PLATFORM_SELECTION_GUIDE.md](PLATFORM_SELECTION_GUIDE.md) | AWS vs Azure comparison and platform selection |
 
 ### Platform-Specific Deployment Guides
-| Platform | Status | Guide | Quick Link |
-|----------|--------|-------|------------|
-| **AWS** | ✅ Production Ready | This README | Deploy to existing VPC |
-| **Azure** | ✅ Production Ready | [AZURE_DEPLOYMENT.md](AZURE_DEPLOYMENT.md) | Deploy with VNet peering |
+| Platform | Status | Guide | Description |
+|----------|--------|-------|-------------|
+| **AWS** | Production Ready | This README | Deploy to existing or new VPCs with multi-VPC support |
+| **Azure** | Production Ready | [AZURE_DEPLOYMENT.md](AZURE_DEPLOYMENT.md) | Deploy with VNet peering |
 
 ### Technical Documentation
 | Document | Description |
 |----------|-------------|
 | [TECHNICAL_NOTES.md](TECHNICAL_NOTES.md) | Implementation details, critical fixes |
 | [TROUBLESHOOTING.md](TROUBLESHOOTING.md) | Common issues and solutions for AWS/Azure |
-| [terraform/README.md](terraform/README.md) | Terraform workspace structure |
-| [docs/MULTI_VPC_*.md](docs/) | Advanced AWS multi-VPC setup (optional) |
+| [terraform/README.md](terraform/README.md) | Terraform workspace structure and module documentation |
 
 ---
 
@@ -55,22 +54,22 @@
 
 This section covers deploying to **AWS**. For Azure, see [AZURE_DEPLOYMENT.md](AZURE_DEPLOYMENT.md).
 
-## 🎯 What This Deploys
+## What This Deploys
 
-- **N Domain Controllers** (1-100+) - automatically scales
-- **M Windows Clients** (0-100+) - automatically scales
+- **N Domain Controllers** (1-100+) with automatic scaling
+- **M Windows Clients** (0-100+) with automatic scaling
 - AD-integrated DNS with forwarders
 - DHCP server on DC1
 - Global Catalog servers
 - Domain: `corp.infolab`
 
-**Proven at scale:** ✅ 3 DCs + 2 clients deployed successfully (zero failures)
+Successfully tested with 3 DCs and 2 clients with zero deployment failures.
 
 ---
 
-## 🏗️ Architecture
+## Architecture
 
-### Role-Based Ansible (NEW!)
+### Role-Based Ansible
 ```
 ansible/roles/
 ├── ad_common/           # Preflight, ADDS install (all hosts)
@@ -81,12 +80,12 @@ ansible/roles/
 playbooks/site.yml       # Orchestrator - scales automatically!
 ```
 
-**Key Innovation:**
-- `domain_controllers[0]` → First DC creates forest
-- `domain_controllers[1:]` → Additional DCs join + promote
-- `windows_clients` → All clients join
+**Architecture Design:**
+- `domain_controllers[0]` creates the AD forest
+- `domain_controllers[1:]` join domain and promote to DCs
+- `windows_clients` join the domain as member servers
 
-**Result:** Change counts in `terraform.tfvars` → infrastructure + Ansible scales automatically!
+Modifying counts in `terraform.tfvars` automatically scales both infrastructure and configuration.
 
 ### Modular Terraform
 ```
@@ -114,11 +113,11 @@ terraform/
     └── ansible-inventory/        # Cross-platform inventory generation
 ```
 
-**Key Design:** Separate workspaces share common modules via symlinks, enabling independent state files while reusing code.
+**Design Approach:** Separate workspaces share common modules via symlinks, enabling independent state files while reusing code.
 
 ---
 
-## 🚀 Quick Start - AWS
+## Quick Start - AWS
 
 **Note:** This is the AWS deployment guide. For Azure, see [AZURE_DEPLOYMENT.md](AZURE_DEPLOYMENT.md).
 
@@ -199,19 +198,19 @@ terraform output rdp_connection_info
 
 ---
 
-## 🌐 AWS Multi-VPC Deployment (NEW!)
+## AWS Multi-VPC Deployment
 
-The AWS deployment now supports **flexible VPC configurations** - you can mix and match existing and new VPCs for Domain Controllers and Clients.
+The AWS deployment supports flexible VPC configurations allowing you to mix and match existing and new VPCs for Domain Controllers and Clients.
 
 ### Supported Scenarios
 
 | Scenario | DCs | Clients | VPC Peering | Use Case |
 |----------|-----|---------|-------------|----------|
-| **1. Same Existing VPC** | Existing VPC | Same VPC | Not needed | Default (backward compatible) |
-| **2. Separate Existing VPCs** | Existing VPC | Different existing VPC | ✅ Auto-created | Integrate with existing infrastructure |
-| **3. Create Both New VPCs** | New VPC | New VPC | ✅ Auto-created | Greenfield deployment |
-| **4. Mix: Existing DC + New Client** | Existing VPC | New VPC | ✅ Auto-created | **Recommended for security segmentation** |
-| **5. Mix: New DC + Existing Client** | New VPC | Existing VPC | ✅ Auto-created | Reverse of scenario 4 |
+| **1. Same Existing VPC** | Existing VPC | Same VPC | Not needed | Default, backward compatible |
+| **2. Separate Existing VPCs** | Existing VPC | Different existing VPC | Auto-created | Integrate with existing infrastructure |
+| **3. Create Both New VPCs** | New VPC | New VPC | Auto-created | Greenfield deployment |
+| **4. Mix: Existing DC + New Client** | Existing VPC | New VPC | Auto-created | Recommended for security segmentation |
+| **5. Mix: New DC + Existing Client** | New VPC | Existing VPC | Auto-created | Reverse of scenario 4 |
 
 ### Quick Configuration Guide
 
@@ -257,23 +256,86 @@ client_subnet_cidr = "10.11.11.0/24"
 ### What Happens Automatically
 
 When using separate VPCs, Terraform automatically:
-- ✅ Creates VPC peering connection (if VPCs differ)
-- ✅ Updates all route tables in both VPCs
-- ✅ Configures security groups for cross-VPC AD traffic
-- ✅ Enables all AD ports (LDAP, Kerberos, DNS, SMB, RPC, etc.)
-- ✅ Sets up bidirectional communication
+- Creates VPC peering connection when VPCs differ
+- Updates all route tables in both VPCs
+- Configures security groups for cross-VPC AD traffic
+- Enables all AD ports: LDAP, Kerberos, DNS, SMB, RPC
+- Sets up bidirectional communication
 
-**No manual networking configuration required!**
+No manual networking configuration required.
+
+### IP Address Customization
+
+The AWS deployment supports both manual and automatic IP address assignment for Domain Controllers and Clients.
+
+#### Option 1: Manual IP Assignment (Recommended for Production)
+
+Specify exact IP addresses for each instance:
+
+```hcl
+# Custom IP addresses
+dc_private_ips     = ["10.10.10.10", "10.10.10.71"]
+client_private_ips = ["10.11.11.5", "10.11.11.6"]
+```
+
+**Important:** Ensure IPs fall within your subnet CIDR ranges and avoid network/broadcast addresses.
+
+#### Option 2: Automatic IP Assignment
+
+Let Terraform calculate IPs using configurable offsets:
+
+```hcl
+# Leave arrays empty for auto-calculation
+dc_private_ips     = []
+client_private_ips = []
+
+# Configure starting offsets
+dc_ip_start_offset     = 10  # DCs get .10, .11, .12...
+client_ip_start_offset = 20  # Clients get .20, .21, .22...
+```
+
+#### IP Assignment Logic
+
+- **Same VPC mode:** Clients start after last DC IP to avoid conflicts
+- **Separate VPC mode:** Each VPC uses its own offset independently
+- **Multi-subnet:** IPs distributed round-robin across subnets
+- **Validation:** Terraform validates IPs against subnet ranges before deployment
+
+#### Example: Multi-VPC with Custom IPs
+
+```hcl
+# Existing DC VPC + New Client VPC
+use_existing_vpcs = false
+use_separate_vpcs = true
+create_dc_vpc     = false
+create_client_vpc = true
+
+existing_dc_vpc_id  = "vpc-0a7299af0067aff53"
+existing_dc_subnets = [
+  "subnet-0a9f063607662c0f0",  # 10.10.10.0/28
+  "subnet-0d0044ce1fabf4833"   # 10.10.10.64/28
+]
+
+client_vpc_cidr    = "10.11.0.0/16"
+client_subnet_cidr = "10.11.11.0/24"
+
+# Custom IPs matching subnet ranges
+dc_private_ips     = ["10.10.10.10", "10.10.10.71"]  # Within /28 subnets
+client_private_ips = ["10.11.11.5", "10.11.11.6"]    # Within /24 subnet
+
+domain_controller_count = 2
+client_count            = 2
+```
 
 ### Complete Configuration Examples
 
-See `terraform/aws/terraform.tfvars.example` for all 5 scenarios with detailed comments.
+See `terraform/aws/terraform.tfvars.example` for all 5 scenarios with detailed comments and IP customization examples.
 
 ---
 
-## 📈 Scaling Made Easy
+## Scaling Operations
 
-### Add 2 More DCs (Scale 3→5)
+### Add 2 More DCs (Scale from 3 to 5)
 
 ```bash
 # 1. Edit terraform.tfvars
@@ -289,11 +351,11 @@ cd ../ansible
 ansible-playbook -i inventory/aws_windows.yml playbooks/site.yml
 ```
 
-**What happens:**
-- ✅ DC1: Skipped (already forest root)
-- ✅ DC2, DC3: Skipped (already promoted)
-- 🆕 DC4: Joins + promotes automatically
-- 🆕 DC5: Joins + promotes automatically
+**Deployment process:**
+- DC1: Skipped, already forest root
+- DC2, DC3: Skipped, already promoted
+- DC4: Joins domain and promotes automatically
+- DC5: Joins domain and promotes automatically
 
 ### Add Clients
 
@@ -306,7 +368,7 @@ ansible-playbook -i inventory/aws_windows.yml playbooks/site.yml
 
 ---
 
-## 🛠️ AWS Configuration
+## AWS Configuration
 
 ### AWS terraform.tfvars
 
@@ -355,7 +417,7 @@ allowed_winrm_cidrs = ["YOUR.IP.HERE/32"]
 
 ---
 
-## 🐛 Troubleshooting
+## Troubleshooting
 
 ### 1. Domain Join Fails: "Domain does not exist"
 
@@ -390,7 +452,7 @@ ansible-playbook -i inventory/aws_windows.yml playbooks/site.yml
 
 ---
 
-## 📂 Project Structure
+## Project Structure
 
 ```
 .
@@ -424,7 +486,7 @@ ansible-playbook -i inventory/aws_windows.yml playbooks/site.yml
 
 ---
 
-## 💰 Costs
+## Cost Considerations
 
 **AWS Pricing (eu-central-1):**
 - **3 DCs (t3.large):** $0.17/hr × 3 = $0.51/hr
@@ -443,25 +505,25 @@ terraform destroy -auto-approve
 
 ---
 
-## ✅ Success Criteria
+## Success Criteria
 
 Deployment successful when:
-- ✅ Terraform apply: 0 errors
-- ✅ Ansible playbook: 0 failures
-- ✅ All systems in `corp.infolab` domain
-- ✅ `nltest /dsgetdc:corp.infolab` works from all hosts
-- ✅ Can RDP with domain credentials
+- Terraform apply completes with 0 errors
+- Ansible playbook completes with 0 failures
+- All systems joined to `corp.infolab` domain
+- `nltest /dsgetdc:corp.infolab` works from all hosts
+- RDP access works with domain credentials
 
 ---
 
-## 🔐 Security Notes
+## Security Notes
 
-**Current (Lab Setup):**
-- ⚠️ Windows Firewall disabled (for simplicity)
-- ⚠️ Static password in code
-- ⚠️ HTTP WinRM (not HTTPS)
+**Current Configuration (Lab Environment):**
+- Windows Firewall disabled for simplicity
+- Static password in code
+- HTTP WinRM instead of HTTPS
 
-**For Production:**
+**Production Recommendations:**
 1. Use AWS Secrets Manager for passwords
 2. Enable Windows Firewall with AD rules
 3. Configure HTTPS for WinRM
@@ -471,18 +533,16 @@ Deployment successful when:
 
 ---
 
-## 🧪 Tested Configurations
+## Tested Configurations
 
-| DCs | Clients | Result | Duration |
-|-----|---------|--------|----------|
-| 2   | 1       | ✅ Success | 25 min |
-| 3   | 2       | ✅ Success | 35 min |
-
----
+| DCs | Clients | Result  | Duration |
+|-----|---------|---------|----------|
+| 2   | 1       | Success | 25 min   |
+| 3   | 2       | Success | 35 min   |
 
 ---
 
-## 📚 Complete Documentation Index
+## Complete Documentation Index
 
 ### Getting Started
 - **[GETTING_STARTED.md](GETTING_STARTED.md)** - Complete setup guide for new users
@@ -494,16 +554,16 @@ Deployment successful when:
 
 ### Technical Resources
 - **[TECHNICAL_NOTES.md](TECHNICAL_NOTES.md)** - Implementation details, fixes, troubleshooting
+- **[TROUBLESHOOTING.md](TROUBLESHOOTING.md)** - Common issues and solutions
 - **[terraform/README.md](terraform/README.md)** - Terraform structure and workspaces
-- **[docs/MULTI_VPC_*.md](docs/)** - Advanced AWS multi-VPC setup (optional)
 
 ---
 
-## 🌐 Azure Deployment
+## Azure Deployment
 
-This README covers **AWS deployment**. For **Azure deployment**:
+This README covers AWS deployment. For Azure deployment:
 
-**👉 See [AZURE_DEPLOYMENT.md](AZURE_DEPLOYMENT.md) for complete Azure guide**
+See [AZURE_DEPLOYMENT.md](AZURE_DEPLOYMENT.md) for complete Azure guide
 
 **Key Azure differences:**
 - Uses `terraform/azure/` workspace with separate state
@@ -515,7 +575,7 @@ This README covers **AWS deployment**. For **Azure deployment**:
 
 ---
 
-## 🤝 Contributing
+## Contributing
 
 Contributions are welcome:
 1. Fork the repository
@@ -524,21 +584,21 @@ Contributions are welcome:
 
 ---
 
-## 📄 License
+## License
 
 MIT License
 
 ---
 
-## 🙏 Acknowledgments
+## Acknowledgments
 
 - Built on Terraform AWS and Azure providers
-- Uses Ansible Windows & Microsoft AD collections
+- Uses Ansible Windows and Microsoft AD collections
 - Proven at scale with role-based architecture
 - Multi-cloud support with shared modules
 
 ---
 
-**Support:** For issues or questions, refer to the troubleshooting section or open a GitHub issue.
+**Support:** For issues or questions, refer to [TROUBLESHOOTING.md](TROUBLESHOOTING.md) or open a GitHub issue.
 
 **Repository:** https://github.com/iracic82/windows-ad-lab

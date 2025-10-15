@@ -1,16 +1,16 @@
 # Getting Started - Local Setup Guide
 
-This guide walks through setting up your local machine to deploy the Windows Active Directory lab to AWS or Azure.
+This guide provides step-by-step instructions for setting up your local machine to deploy the Windows Active Directory lab to AWS or Azure.
 
 ## Overview
 
 After cloning this repository, you need to install:
 1. Cloud CLI (AWS CLI or Azure CLI)
 2. Terraform
-3. Ansible + Python dependencies
+3. Ansible and Python dependencies
 4. Configure cloud credentials
 
-**Time to setup:** ~15-20 minutes
+**Estimated setup time:** 15-20 minutes
 
 ---
 
@@ -285,32 +285,64 @@ allowed_winrm_cidrs = ["203.0.113.42/32"]
 
 ### AWS (terraform/aws/terraform.tfvars)
 
-```hcl
-# AWS Configuration
-aws_region  = "eu-central-1"  # Your AWS region
-aws_profile = "okta-sso"      # Your AWS profile name
+AWS supports **5 deployment scenarios** - choose one:
 
-# Network (use your existing VPC and subnet)
+**Option 1: Single Existing VPC (Simplest)**
+```hcl
+aws_region  = "eu-central-1"
+aws_profile = "okta-sso"
+
+# Use existing VPC for everything
+use_existing_vpcs = true
+use_separate_vpcs = false
 vpc_id  = "vpc-xxxxxxxxxxxxx"
 subnets = ["subnet-xxxxxxxxxxxxx"]
 
-# Scale
-domain_controller_count = 2  # Start with 2 DCs
-client_count            = 2  # Start with 2 clients
-
-# Domain
-domain_name           = "corp.infolab"
-domain_admin_password = "P@ssw0rd123!SecureAD"  # Change this!
-
-# Security
-key_name            = "your-key-pair-name"  # Your EC2 key pair
-allowed_rdp_cidrs   = ["YOUR.IP.HERE/32"]
-allowed_winrm_cidrs = ["YOUR.IP.HERE/32"]
-
-# Instance Sizes (adjust based on budget)
-dc_instance_type     = "t3.large"   # 2 vCPU, 8GB RAM
-client_instance_type = "t3.medium"  # 2 vCPU, 4GB RAM
+domain_controller_count = 2
+client_count            = 2
+domain_name             = "corp.infolab"
+domain_admin_password   = "P@ssw0rd123!SecureAD"
+key_name                = "your-key-pair-name"
+allowed_rdp_cidrs       = ["YOUR.IP.HERE/32"]
+allowed_winrm_cidrs     = ["YOUR.IP.HERE/32"]
 ```
+
+**Option 2: Existing DC VPC + New Client VPC (Recommended)**
+```hcl
+aws_region  = "eu-central-1"
+aws_profile = "okta-sso"
+
+# Multi-VPC with peering
+use_existing_vpcs = false
+use_separate_vpcs = true
+create_dc_vpc     = false  # Use existing
+create_client_vpc = true   # Create new
+
+# Existing DC VPC
+existing_dc_vpc_id = "vpc-0a7299af0067aff53"
+existing_dc_subnets = [
+  "subnet-0a9f063607662c0f0",
+  "subnet-0d0044ce1fabf4833"
+]
+
+# New Client VPC (Terraform creates)
+client_vpc_cidr    = "10.11.0.0/16"
+client_subnet_cidr = "10.11.11.0/24"
+
+# IP Customization (optional)
+dc_private_ips     = ["10.10.10.10", "10.10.10.71"]
+client_private_ips = ["10.11.11.5", "10.11.11.6"]
+
+domain_controller_count = 2
+client_count            = 2
+domain_name             = "corp.infolab"
+domain_admin_password   = "P@ssw0rd123!SecureAD"
+key_name                = "infoblox-tme"
+allowed_rdp_cidrs       = ["YOUR.IP.HERE/32"]
+allowed_winrm_cidrs     = ["YOUR.IP.HERE/32"]
+```
+
+**See terraform/aws/terraform.tfvars.example for all 5 scenarios**
 
 ### Azure (terraform/azure/terraform.tfvars.azure)
 
@@ -351,22 +383,22 @@ Run this checklist to ensure everything is installed:
 
 ```bash
 # Cloud CLIs
-aws --version        # ✓ Should show version 2.x
-az --version         # ✓ Should show version 2.x
+aws --version        # Should show version 2.x
+az --version         # Should show version 2.x
 
 # Terraform
-terraform --version  # ✓ Should be >= 1.0
+terraform --version  # Should be >= 1.0
 
 # Ansible
-ansible --version    # ✓ Should be >= 2.12
-python3 -c "import winrm"  # ✓ Should not error
+ansible --version    # Should be >= 2.12
+python3 -c "import winrm"  # Should not error
 
 # Cloud credentials
-aws sts get-caller-identity --profile okta-sso  # ✓ Shows your AWS account
-az account show                                  # ✓ Shows your Azure subscription
+aws sts get-caller-identity --profile okta-sso  # Shows your AWS account
+az account show                                  # Shows your Azure subscription
 
 # Your public IP
-curl ifconfig.me     # ✓ Shows your IP address
+curl ifconfig.me     # Shows your IP address
 ```
 
 ---
@@ -531,4 +563,4 @@ For issues:
 2. **Review [TECHNICAL_NOTES.md](TECHNICAL_NOTES.md)** - Implementation details and critical fixes
 3. **Open an issue** in the GitHub repository with detailed information
 
-**Happy deploying!** 🚀
+Deployment setup is now complete.
