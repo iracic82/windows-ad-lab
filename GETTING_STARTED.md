@@ -450,7 +450,7 @@ sleep 180  # Wait for VMs to boot
 
 cd ../../ansible
 export OBJC_DISABLE_INITIALIZE_FORK_SAFETY=YES  # macOS only
-ansible-playbook -i inventory/azure_windows.yml playbooks/site.yml
+ansible-playbook -i ../terraform/ansible/inventory/azure_windows.yml playbooks/site.yml
 ```
 
 ---
