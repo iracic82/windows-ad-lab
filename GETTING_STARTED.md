@@ -527,8 +527,8 @@ terraform destroy -var-file="terraform.tfvars.azure" -auto-approve
 ## Support
 
 For issues:
-1. Check [TROUBLESHOOTING.md](TROUBLESHOOTING.md) (if available)
-2. Review [TECHNICAL_NOTES.md](TECHNICAL_NOTES.md) for implementation details
-3. Open an issue in the GitHub repository
+1. **Check [TROUBLESHOOTING.md](TROUBLESHOOTING.md)** - Comprehensive troubleshooting for AWS and Azure
+2. **Review [TECHNICAL_NOTES.md](TECHNICAL_NOTES.md)** - Implementation details and critical fixes
+3. **Open an issue** in the GitHub repository with detailed information
 
 **Happy deploying!** 🚀

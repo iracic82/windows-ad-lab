@@ -9,6 +9,7 @@ This guide covers deploying the Windows Active Directory lab on **Azure**. For *
 | **AWS Deployment** | [README.md](README.md) |
 | **Platform Comparison** | [PLATFORM_SELECTION_GUIDE.md](PLATFORM_SELECTION_GUIDE.md) |
 | **Getting Started** | [GETTING_STARTED.md](GETTING_STARTED.md) |
+| **Troubleshooting** | [TROUBLESHOOTING.md](TROUBLESHOOTING.md) |
 | **Technical Details** | [TECHNICAL_NOTES.md](TECHNICAL_NOTES.md) |
 
 ---

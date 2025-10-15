@@ -19,7 +19,8 @@
 ### Technical Documentation
 | Document | Description |
 |----------|-------------|
-| [TECHNICAL_NOTES.md](TECHNICAL_NOTES.md) | Implementation details, critical fixes, troubleshooting |
+| [TECHNICAL_NOTES.md](TECHNICAL_NOTES.md) | Implementation details, critical fixes |
+| [TROUBLESHOOTING.md](TROUBLESHOOTING.md) | Common issues and solutions for AWS/Azure |
 | [terraform/README.md](terraform/README.md) | Terraform workspace structure |
 | [docs/MULTI_VPC_*.md](docs/) | Advanced AWS multi-VPC setup (optional) |
 
