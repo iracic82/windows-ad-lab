@@ -78,12 +78,30 @@ curl ifconfig.me
 
 ---
 
+## Configuration Guide
+
+### Terraform Variables Overview
+
+The Azure deployment uses `terraform/azure/terraform.tfvars.azure` for configuration. You have two deployment modes:
+
+**Mode 1: Create New VNets (Default)**
+- Terraform creates new VNets for DCs and clients
+- Automatic VNet peering between DC and Client VNets
+- Recommended for lab/demo environments
+
+**Mode 2: Use Existing VNets**
+- Deploy into your existing VNets
+- Supports same VNet or different VNets
+- Recommended for integration with existing infrastructure
+
+---
+
 ## Quick Start
 
 ### Step 1: Configure Terraform Variables
 
 ```bash
-cd terraform
+cd terraform/azure
 
 # Copy the example configuration
 cp terraform.tfvars.azure.example terraform.tfvars.azure
@@ -92,26 +110,79 @@ cp terraform.tfvars.azure.example terraform.tfvars.azure
 vim terraform.tfvars.azure
 ```
 
-**Required changes in `terraform.tfvars.azure`:**
+### Step 1a: Required Variables (Both Modes)
 
 ```hcl
-# 1. Azure subscription ID (get from: az account show)
-azure_subscription_id = "12345678-1234-1234-1234-123456789abc"
+# ===================================
+# Azure Configuration
+# ===================================
+azure_subscription_id = "12345678-1234-1234-1234-123456789abc"  # From: az account show
+azure_location        = "eastus"  # or westus2, northeurope, etc.
 
-# 2. Azure region
-azure_location = "eastus"  # or westus2, northeurope, etc.
+# ===================================
+# Domain Configuration
+# ===================================
+domain_name           = "corp.infolab"
+domain_admin_password = "P@ssw0rd123!SecureAD"  # Change this!
 
-# 3. Your public IP for security (from: curl ifconfig.me)
+# ===================================
+# Scale Configuration
+# ===================================
+domain_controller_count = 2  # Number of Domain Controllers
+client_count            = 1  # Number of Windows clients
+
+# ===================================
+# Security Configuration
+# ===================================
+# Your public IP (from: curl ifconfig.me)
 allowed_rdp_cidrs   = ["203.0.113.42/32"]
 allowed_winrm_cidrs = ["203.0.113.42/32"]
-
-# 4. Domain password
-domain_admin_password = "P@ssw0rd123!SecureAD"
-
-# 5. Scale
-domain_controller_count = 2
-client_count            = 2
 ```
+
+### Step 1b: Network Mode Selection
+
+**Option A: Create New VNets (Default)**
+
+```hcl
+# ===================================
+# Network Configuration - NEW VNets
+# ===================================
+azure_use_existing_vnets = false
+
+# VNet CIDR blocks (Terraform will create these)
+azure_dc_vnet_cidr       = "10.0.0.0/16"
+azure_dc_subnet_cidr     = "10.0.1.0/24"
+azure_client_vnet_cidr   = "10.1.0.0/16"
+azure_client_subnet_cidr = "10.1.1.0/24"
+```
+
+**Option B: Use Existing VNets**
+
+```hcl
+# ===================================
+# Network Configuration - EXISTING VNets
+# ===================================
+azure_use_existing_vnets = true
+
+# Resource group containing your VNets
+azure_existing_resource_group_name = "my-network-rg"
+
+# DCs in one VNet
+azure_existing_dc_vnet_name   = "hub-vnet"
+azure_existing_dc_subnet_name = "dc-subnet"
+
+# Clients in another VNet (or same VNet!)
+azure_existing_client_vnet_name   = "spoke-vnet"  # Can be same as dc_vnet_name
+azure_existing_client_subnet_name = "client-subnet"
+```
+
+**Common Scenarios:**
+
+| Scenario | DC VNet | Client VNet | Peering | Use Case |
+|----------|---------|-------------|---------|----------|
+| **Separate VNets** | hub-vnet | spoke-vnet | Auto-created | Hub-spoke topology |
+| **Same VNet, Different Subnets** | prod-vnet | prod-vnet | Not needed | Single VNet deployment |
+| **Same VNet, Same Subnet** | shared-vnet | shared-vnet | Not needed | Simplest setup |
 
 ### Step 2: Deploy Infrastructure
 
@@ -284,60 +355,15 @@ The Terraform configuration automatically creates bidirectional VNet peering:
 - Clients can authenticate against DCs
 - No additional routing required
 
-### Using Existing VNets
+### Advanced: Using Existing VNets
 
-The Azure implementation supports **two deployment modes**:
+See **Step 1b** in the Quick Start section above for detailed configuration options.
 
-#### Mode 1: Create New VNets (Default)
-
-This is the default behavior. Terraform will create:
-- New DC VNet with specified CIDR
-- New Client VNet with specified CIDR
-- Subnets in each VNet
-- VNet peering between them
-
-**Configuration in `terraform.tfvars.azure`:**
-```hcl
-azure_use_existing_vnets = false
-
-# Specify CIDR blocks (Terraform will create these)
-azure_dc_vnet_cidr       = "10.0.0.0/16"
-azure_dc_subnet_cidr     = "10.0.1.0/24"
-azure_client_vnet_cidr   = "10.1.0.0/16"
-azure_client_subnet_cidr = "10.1.1.0/24"
-```
-
-#### Mode 2: Use Existing VNets
-
-If you already have VNets (e.g., shared hub VNets, corporate networks), you can use them.
-
-**Prerequisites:**
-1. VNets must exist in Azure
-2. Subnets must exist in the VNets
-3. VNets must be in the same Azure region
-4. Subnets must have enough available IP addresses for VMs
-
-**Configuration in `terraform.tfvars.azure`:**
-```hcl
-azure_use_existing_vnets = true
-
-# Specify names of existing resources
-azure_existing_resource_group_name = "my-network-rg"
-
-# DC VNet and subnet
-azure_existing_dc_vnet_name   = "hub-vnet"
-azure_existing_dc_subnet_name = "dc-subnet"
-
-# Client VNet and subnet
-azure_existing_client_vnet_name   = "spoke-vnet"
-azure_existing_client_subnet_name = "client-subnet"
-```
-
-**What happens in this mode:**
-- ✅ Terraform uses your existing VNets and subnets
-- ✅ VNet peering is created automatically (if VNets are different)
-- ✅ NSGs are created and attached to your subnets
-- ✅ VMs are deployed into your existing subnets
+**Key Points:**
+- ✅ Supports separate VNets (hub-spoke) or same VNet deployment
+- ✅ VNet peering created automatically when VNets differ
+- ✅ NSGs created and attached to your subnets
+- ✅ VMs deployed with static IPs
 
 **To find your existing VNet names:**
 ```bash
