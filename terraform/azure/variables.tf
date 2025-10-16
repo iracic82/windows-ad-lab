@@ -27,6 +27,12 @@ variable "project_name" {
   default     = "windows-ad-lab"
 }
 
+variable "vm_name_prefix" {
+  description = "Short prefix for VM names (e.g., 'winadlab' for winadlab-dc1)"
+  type        = string
+  default     = "winadlab"
+}
+
 variable "environment" {
   description = "Environment name (dev, test, prod)"
   type        = string
@@ -43,6 +49,36 @@ variable "creator" {
   description = "Email of the person who created these resources"
   type        = string
   default     = ""
+}
+
+variable "owner" {
+  description = "Email of the resource owner"
+  type        = string
+  default     = ""
+}
+
+variable "purpose" {
+  description = "Purpose of the deployment"
+  type        = string
+  default     = "SalesEnablement"
+}
+
+variable "cost_center" {
+  description = "Cost center for billing"
+  type        = string
+  default     = "Enablement-Labs"
+}
+
+variable "department" {
+  description = "Department owning these resources"
+  type        = string
+  default     = "SolutionArchitecture"
+}
+
+variable "lifecycle" {
+  description = "Resource lifecycle (Persistent, Temporary, Ephemeral)"
+  type        = string
+  default     = "Persistent"
 }
 
 # ===================================

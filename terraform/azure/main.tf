@@ -44,6 +44,11 @@ locals {
     Environment = var.environment
     ManagedBy   = var.managed_by
     Creator     = var.creator
+    Owner       = var.owner
+    Purpose     = var.purpose
+    CostCenter  = var.cost_center
+    Department  = var.department
+    Lifecycle   = var.lifecycle
   }
 
   # Calculate private IPs for DCs (starting from .5)
@@ -113,7 +118,7 @@ module "azure_domain_controllers" {
   source = "./modules/azure-windows-vm"
   count  = var.domain_controller_count
 
-  project_name        = var.project_name
+  vm_name_prefix      = var.vm_name_prefix
   name                = "dc${count.index + 1}"
   role                = "domain_controller"
   location            = var.azure_location
@@ -138,8 +143,8 @@ module "azure_clients" {
   source = "./modules/azure-windows-vm"
   count  = var.client_count
 
-  project_name        = var.project_name
-  name                = "client${count.index + 1}"
+  vm_name_prefix      = var.vm_name_prefix
+  name                = "cl${count.index + 1}"
   role                = "domain_client"
   location            = var.azure_location
   resource_group_name = azurerm_resource_group.main.name
