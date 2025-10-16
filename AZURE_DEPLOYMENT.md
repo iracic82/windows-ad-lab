@@ -76,7 +76,7 @@ All Azure resources are automatically tagged for comprehensive tracking and cost
 | Tag | Description | Example |
 |-----|-------------|---------|
 | **Role** | VM role | `domain_controller`, `domain_client` |
-| **OS** | Operating System | `WindowsServer2022` |
+| **OS** | Operating System | `WindowsServer2025` |
 | **Name** | Resource name | `winadlab-dc1`, `winadlab-cl1` |
 
 ### VM Naming Convention
@@ -212,7 +212,7 @@ resource_lifecycle  = "Persistent"      # Persistent, Temporary, Ephemeral
 # ===================================
 # Domain Configuration
 # ===================================
-domain_name           = "corp.infolab"
+domain_name           = "acme.corp"
 domain_admin_password = "P@ssw0rd123!SecureAD"  # Change this!
 
 # ===================================
@@ -316,7 +316,7 @@ cd ansible
 ansible-playbook -i inventory/azure_windows.yml playbooks/site.yml
 
 # What happens:
-# 1. DC1 creates the forest (corp.infolab)
+# 1. DC1 creates the forest (acme.corp)
 # 2. DC2, DC3, ... join and promote automatically
 # 3. CLIENT1, CLIENT2, ... join the domain
 ```
@@ -329,7 +329,7 @@ ansible windows -i inventory/azure_windows.yml \
   -m ansible.windows.win_shell \
   -a "(Get-WmiObject Win32_ComputerSystem).Domain"
 
-# All should return: corp.infolab
+# All should return: acme.corp
 ```
 
 ### Step 6: RDP Access
