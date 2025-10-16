@@ -75,7 +75,7 @@ variable "department" {
   default     = "SolutionArchitecture"
 }
 
-variable "lifecycle" {
+variable "resource_lifecycle" {
   description = "Resource lifecycle (Persistent, Temporary, Ephemeral)"
   type        = string
   default     = "Persistent"

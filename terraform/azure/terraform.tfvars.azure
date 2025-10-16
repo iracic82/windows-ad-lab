@@ -16,16 +16,16 @@ azure_location        = "eastus"
 # Project Configuration
 # ===================================
 
-project_name   = "windows-ad-lab"
-vm_name_prefix = "winadlab"
-environment    = "demo"
-managed_by     = "Terraform"
-creator        = "iracic@infoblox.com"
-owner          = "iracic@infoblox.com"
-purpose        = "SalesEnablement"
-cost_center    = "Enablement-Labs"
-department     = "SolutionArchitecture"
-lifecycle      = "Persistent"
+project_name        = "windows-ad-lab"
+vm_name_prefix      = "winadlab"
+environment         = "demo"
+managed_by          = "Terraform"
+creator             = "iracic@infoblox.com"
+owner               = "iracic@infoblox.com"
+purpose             = "SalesEnablement"
+cost_center         = "Enablement-Labs"
+department          = "SolutionArchitecture"
+resource_lifecycle  = "Persistent"
 
 # ===================================
 # Network Configuration - NEW VNets (Testing Mode)

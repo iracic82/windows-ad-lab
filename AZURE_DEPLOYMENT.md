@@ -55,23 +55,53 @@ Azure Infrastructure:
 
 ## Resource Tagging
 
-All Azure resources are automatically tagged with:
+All Azure resources are automatically tagged for comprehensive tracking and cost management:
+
+### Common Tags (Applied to ALL Resources)
+
+| Tag | Description | Example | Configured In |
+|-----|-------------|---------|---------------|
+| **Project** | Project name | `windows-ad-lab` | `project_name` |
+| **Environment** | Environment type | `demo`, `dev`, `test`, `prod` | `environment` |
+| **ManagedBy** | Tool managing resources | `Terraform` | `managed_by` |
+| **Creator** | Email of resource creator | `iracic@infoblox.com` | `creator` |
+| **Owner** | Email of resource owner | `iracic@infoblox.com` | `owner` |
+| **Purpose** | Purpose of deployment | `SalesEnablement` | `purpose` |
+| **CostCenter** | Cost center for billing | `Enablement-Labs` | `cost_center` |
+| **Department** | Owning department | `SolutionArchitecture` | `department` |
+| **Lifecycle** | Resource lifecycle | `Persistent`, `Temporary`, `Ephemeral` | `resource_lifecycle` |
+
+### VM-Specific Tags (In Addition to Common Tags)
 
 | Tag | Description | Example |
 |-----|-------------|---------|
-| **Project** | Project name | `windows-ad-lab` |
-| **Environment** | Environment type | `dev`, `test`, `prod` |
-| **ManagedBy** | Tool managing resources | `Terraform` |
-| **Creator** | Email of resource creator | `your-email@example.com` |
+| **Role** | VM role | `domain_controller`, `domain_client` |
+| **OS** | Operating System | `WindowsServer2022` |
+| **Name** | Resource name | `winadlab-dc1`, `winadlab-cl1` |
 
-**Benefits:**
-- **Cost tracking**: Filter Azure Cost Management by tags
-- **Resource organization**: Group resources by project/environment
-- **Ownership**: Track who created resources
-- **Automation**: Identify Terraform-managed resources
+### VM Naming Convention
+
+**Azure VM Names:**
+- Domain Controllers: `winadlab-dc1`, `winadlab-dc2`, `winadlab-dc3`...
+- Clients: `winadlab-cl1`, `winadlab-cl2`...
+
+**Windows Computer Names:**
+- Domain Controllers: `DC1`, `DC2`, `DC3`...
+- Clients: `CL1`, `CL2`...
 
 **Customization:**
-You can modify tags in `terraform.tfvars.azure` (see Configuration Guide below).
+Change `vm_name_prefix` in `terraform.tfvars.azure` to use different naming (e.g., `mylab`, `prod-ad`)
+
+### Benefits
+
+- **Cost Tracking**: Filter Azure Cost Management by `CostCenter`, `Purpose`, `Environment`
+- **Resource Organization**: Group resources by `Project`, `Department`, `Environment`
+- **Ownership**: Track who created/owns resources via `Creator` and `Owner` tags
+- **Lifecycle Management**: Identify `Temporary` vs `Persistent` resources for cleanup
+- **Automation**: Identify Terraform-managed resources via `ManagedBy` tag
+
+**Customization:**
+All tags are configurable in `terraform.tfvars.azure` (see Configuration Guide below).
 
 ---
 
@@ -166,12 +196,18 @@ azure_subscription_id = "12345678-1234-1234-1234-123456789abc"  # From: az accou
 azure_location        = "eastus"  # or westus2, northeurope, etc.
 
 # ===================================
-# Project Configuration
+# Project Configuration & Tagging
 # ===================================
-project_name = "windows-ad-lab"
-environment  = "dev"           # dev, test, prod
-managed_by   = "Terraform"     # Tool managing resources
-creator      = "your-email@example.com"  # Your email for resource tracking
+project_name        = "windows-ad-lab"
+vm_name_prefix      = "winadlab"        # Prefix for VM names (winadlab-dc1, winadlab-cl1)
+environment         = "demo"            # demo, dev, test, prod
+managed_by          = "Terraform"       # Tool managing resources
+creator             = "your-email@example.com"
+owner               = "your-email@example.com"
+purpose             = "SalesEnablement"
+cost_center         = "Enablement-Labs"
+department          = "SolutionArchitecture"
+resource_lifecycle  = "Persistent"      # Persistent, Temporary, Ephemeral
 
 # ===================================
 # Domain Configuration

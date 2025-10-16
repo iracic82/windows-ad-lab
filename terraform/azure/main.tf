@@ -48,7 +48,7 @@ locals {
     Purpose     = var.purpose
     CostCenter  = var.cost_center
     Department  = var.department
-    Lifecycle   = var.lifecycle
+    Lifecycle   = var.resource_lifecycle
   }
 
   # Calculate private IPs for DCs (starting from .5)

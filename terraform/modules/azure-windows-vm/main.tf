@@ -6,7 +6,7 @@
 # Create Public IP
 resource "azurerm_public_ip" "vm_public_ip" {
   count               = var.create_public_ip ? 1 : 0
-  name                = "${var.project_name}-${var.name}-pip"
+  name                = "${var.name}-pip"
   location            = var.location
   resource_group_name = var.resource_group_name
   allocation_method   = "Static"
@@ -15,14 +15,14 @@ resource "azurerm_public_ip" "vm_public_ip" {
   tags = merge(
     var.common_tags,
     {
-      Name = "${var.project_name}-${var.name}-pip"
+      Name = "${var.name}-pip"
     }
   )
 }
 
 # Create Network Interface
 resource "azurerm_network_interface" "vm_nic" {
-  name                = "${var.project_name}-${var.name}-nic"
+  name                = "${var.vm_name_prefix}-${var.name}-nic"
   location            = var.location
   resource_group_name = var.resource_group_name
 
@@ -37,14 +37,14 @@ resource "azurerm_network_interface" "vm_nic" {
   tags = merge(
     var.common_tags,
     {
-      Name = "${var.project_name}-${var.name}-nic"
+      Name = "${var.vm_name_prefix}-${var.name}-nic"
     }
   )
 }
 
 # Create Virtual Machine
 resource "azurerm_windows_virtual_machine" "vm" {
-  name                = "${var.project_name}-${upper(var.name)}"
+  name                = "${var.vm_name_prefix}-${var.name}"
   computer_name       = upper(var.name)  # Windows computer name (must be ≤15 chars)
   location            = var.location
   resource_group_name = var.resource_group_name
@@ -57,7 +57,7 @@ resource "azurerm_windows_virtual_machine" "vm" {
   ]
 
   os_disk {
-    name                 = "${var.project_name}-${var.name}-osdisk"
+    name                 = "${var.vm_name_prefix}-${var.name}-osdisk"
     caching              = "ReadWrite"
     storage_account_type = "Premium_LRS"
     disk_size_gb         = var.os_disk_size
@@ -73,8 +73,9 @@ resource "azurerm_windows_virtual_machine" "vm" {
   tags = merge(
     var.common_tags,
     {
-      Name = "${var.project_name}-${upper(var.name)}"
+      Name = "${var.vm_name_prefix}-${var.name}"
       Role = var.role
+      OS   = "WindowsServer2022"
     }
   )
 }

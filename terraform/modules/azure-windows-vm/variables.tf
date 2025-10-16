@@ -2,8 +2,8 @@
 # Azure Windows VM Module Variables
 # ============================================================================
 
-variable "project_name" {
-  description = "Project name for resource naming"
+variable "vm_name_prefix" {
+  description = "Short prefix for VM names (e.g., 'winadlab')"
   type        = string
 }
 
