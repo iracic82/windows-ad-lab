@@ -349,14 +349,14 @@ terraform output azure_rdp_connection_info
 # - client2: 20.30.40.53 (Private: 10.1.1.6)
 #
 # Credentials:
-# - Username: Administrator
+# - Username: azureadmin
 # - Password: P@ssw0rd123!SecureAD
-# - Domain: corp.infolab
+# - Domain: acme.corp
 ```
 
 **Connect via RDP:**
 - **Host:** Public IP from output above
-- **Username:** `corp.infolab\Administrator` (or just `Administrator` for local)
+- **Username:** `acme.corp\azureadmin` or `azureadmin@acme.corp` (UPN format)
 - **Password:** Your configured password
 
 ---
