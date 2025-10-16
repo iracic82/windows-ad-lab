@@ -18,6 +18,8 @@ azure_location        = "eastus"
 
 project_name = "windows-ad-lab"
 environment  = "dev"
+managed_by   = "Terraform"
+creator      = "iracic@infoblox.com"
 
 # ===================================
 # Network Configuration - NEW VNets (Testing Mode)

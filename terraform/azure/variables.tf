@@ -33,6 +33,18 @@ variable "environment" {
   default     = "dev"
 }
 
+variable "managed_by" {
+  description = "Tool or system managing these resources"
+  type        = string
+  default     = "Terraform"
+}
+
+variable "creator" {
+  description = "Email of the person who created these resources"
+  type        = string
+  default     = ""
+}
+
 # ===================================
 # Domain Configuration
 # ===================================

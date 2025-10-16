@@ -42,7 +42,8 @@ locals {
   common_tags = {
     Project     = var.project_name
     Environment = var.environment
-    ManagedBy   = "Terraform"
+    ManagedBy   = var.managed_by
+    Creator     = var.creator
   }
 
   # Calculate private IPs for DCs (starting from .5)
