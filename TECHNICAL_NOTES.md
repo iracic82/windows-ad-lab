@@ -95,8 +95,8 @@ Dom Name: corp.infolab
 Forest Name: corp.infolab
 The command completed successfully
 
-# Test domain join
-ansible dc2 -i inventory/aws_windows.yml -m microsoft.ad.membership -a "dns_domain_name=corp.infolab domain_admin_user=CORP\\Administrator domain_admin_password=P@ssw0rd123!SecureAD state=domain"
+# Test domain join (using UPN format for credentials)
+ansible dc2 -i inventory/aws_windows.yml -m microsoft.ad.membership -a "dns_domain_name=corp.infolab domain_admin_user=Administrator@corp.infolab domain_admin_password=P@ssw0rd123!SecureAD state=domain"
 
 # SUCCESS!
 dc2 | CHANGED => {
