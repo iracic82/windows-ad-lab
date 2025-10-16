@@ -9,22 +9,22 @@
 # ===================================
 
 # Your Azure subscription ID
-azure_subscription_id = "f3c83d34-3cf7-454e-93e5-2d8f604289e3"
+azure_subscription_id = "57a5f4f0-e9e8-4886-a8d7-b73a3ea2aa8b"
 azure_location        = "eastus"
 
 # ===================================
 # Project Configuration
 # ===================================
 
-project_name        = "windows-ad-lab"
-vm_name_prefix      = "winadlab"
+project_name        = "demo-enablement"
+vm_name_prefix      = "demo"
 environment         = "demo"
 managed_by          = "Terraform"
 creator             = "iracic@infoblox.com"
-owner               = "iracic@infoblox.com"
+owner               = "ssalo@infoblox.com"
 purpose             = "SalesEnablement"
 cost_center         = "Enablement-Labs"
-department          = "SolutionArchitecture"
+department          = "SolutionEngineering"
 resource_lifecycle  = "Persistent"
 
 # ===================================
@@ -34,24 +34,24 @@ resource_lifecycle  = "Persistent"
 azure_use_existing_vnets = false
 
 # Terraform will create these VNets
-azure_dc_vnet_cidr       = "10.0.0.0/16"
-azure_dc_subnet_cidr     = "10.0.1.0/24"
-azure_client_vnet_cidr   = "10.1.0.0/16"
-azure_client_subnet_cidr = "10.1.1.0/24"
+azure_dc_vnet_cidr       = "172.18.1.0/24"
+azure_dc_subnet_cidr     = "172.18.1.0/24"
+azure_client_vnet_cidr   = "172.18.2.0/24"
+azure_client_subnet_cidr = "172.18.2.0/24"
 
 # ===================================
 # Domain Configuration
 # ===================================
 
-domain_name           = "corp.infolab"
+domain_name           = "acme.corp"
 domain_admin_password = "P@ssw0rd123!SecureAD"
 
 # ===================================
 # Scale Configuration - Scale Test
 # ===================================
 
-domain_controller_count = 3  # Test with 3 DCs
-client_count            = 2  # Test with 2 clients
+domain_controller_count = 2  # Test with 3 DCs
+client_count            = 4  # Test with 2 clients
 
 # ===================================
 # VM Configuration
@@ -59,7 +59,7 @@ client_count            = 2  # Test with 2 clients
 
 azure_dc_vm_size     = "Standard_D2s_v3"  # 2 vCPU, 8GB RAM
 azure_client_vm_size = "Standard_B2s"      # 2 vCPU, 4GB RAM
-azure_windows_sku    = "2022-datacenter-g2"
+azure_windows_sku    = "2025-datacenter-g2"
 root_volume_size     = 128
 
 # ===================================
@@ -67,8 +67,8 @@ root_volume_size     = 128
 # ===================================
 
 # Your current public IP (auto-detected)
-allowed_rdp_cidrs   = ["88.89.194.135/32"]
-allowed_winrm_cidrs = ["88.89.194.135/32"]
+allowed_rdp_cidrs   = ["88.89.194.135/32","217.65.139.220/32"]
+allowed_winrm_cidrs = ["88.89.194.135/32","217.65.139.220/32"]
 
 # ===================================
 # Ansible Configuration

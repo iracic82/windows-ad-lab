@@ -22,7 +22,7 @@ if ! command -v az &> /dev/null; then
 fi
 
 # Target subscription
-TARGET_SUB="f3c83d34-3cf7-454e-93e5-2d8f604289e3"
+TARGET_SUB="57a5f4f0-e9e8-4886-a8d7-b73a3ea2aa8b"
 
 # Login if needed
 if ! az account show &> /dev/null; then
@@ -86,12 +86,12 @@ echo "Testing Connectivity"
 echo "========================================"
 cd ../../ansible
 export OBJC_DISABLE_INITIALIZE_FORK_SAFETY=YES
-ansible all -i inventory/azure_windows.yml -m win_ping
+ansible all -i ../terraform/ansible/inventory/azure_windows.yml -m win_ping
 
 echo ""
 echo -e "${GREEN}✓ Deployment complete!${NC}"
 echo ""
 echo "Next steps:"
-echo "  1. Configure AD: ansible-playbook -i inventory/azure_windows.yml playbooks/site.yml"
+echo "  1. Configure AD: ansible-playbook -i ../terraform/ansible/inventory/azure_windows.yml playbooks/site.yml"
 echo "  2. Get RDP info: cd ../terraform/azure && terraform output azure_rdp_connection_info"
 echo "  3. Cleanup: cd ../terraform/azure && terraform destroy -var-file='terraform.tfvars.azure'"

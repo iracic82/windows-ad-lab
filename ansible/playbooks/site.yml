@@ -11,7 +11,7 @@
   strategy: linear
 
   vars:
-    domain_name: corp.infolab
+    domain_name: acme.corp
     domain_netbios: CORP
     # domain_admin_user comes from inventory (Azure: CORP\azureadmin, AWS: defaults below)
     # domain_admin_password comes from inventory
@@ -34,7 +34,7 @@
   strategy: linear
 
   vars:
-    domain_name: corp.infolab
+    domain_name: acme.corp
     domain_netbios: CORP
 
     ansible_connection: winrm
@@ -54,7 +54,7 @@
   serial: 1  # One DC at a time to avoid replication issues
 
   vars:
-    domain_name: corp.infolab
+    domain_name: acme.corp
     domain_netbios: CORP
 
     ansible_connection: winrm
@@ -74,7 +74,7 @@
   serial: 1  # One client at a time to avoid domain join conflicts
 
   vars:
-    domain_name: corp.infolab
+    domain_name: acme.corp
     domain_netbios: CORP
 
     ansible_connection: winrm
