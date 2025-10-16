@@ -44,11 +44,6 @@ variable "domain_netbios" {
   default     = "CORP"
 }
 
-variable "domain_admin_user" {
-  description = "Domain admin username (with NetBIOS prefix)"
-  type        = string
-}
-
 variable "output_path" {
   description = "Path where inventory file will be created"
   type        = string

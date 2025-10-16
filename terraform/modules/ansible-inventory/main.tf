@@ -30,15 +30,14 @@ locals {
 # Generate Ansible inventory file
 resource "local_file" "ansible_inventory" {
   content = templatefile("${path.module}/templates/inventory.tftpl", {
-    ansible_user      = var.ansible_user
-    ansible_password  = var.ansible_password
-    domain_name       = var.domain_name
-    domain_netbios    = var.domain_netbios
-    domain_admin_user = var.domain_admin_user
-    dc1_ip            = local.dc1_ip
-    dc2_ip            = local.dc2_ip
-    dc_hosts          = local.dc_hosts
-    client_hosts      = local.client_hosts
+    ansible_user     = var.ansible_user
+    ansible_password = var.ansible_password
+    domain_name      = var.domain_name
+    domain_netbios   = var.domain_netbios
+    dc1_ip           = local.dc1_ip
+    dc2_ip           = local.dc2_ip
+    dc_hosts         = local.dc_hosts
+    client_hosts     = local.client_hosts
   })
 
   filename        = var.output_path

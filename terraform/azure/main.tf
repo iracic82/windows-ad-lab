@@ -184,12 +184,11 @@ module "azure_ansible_inventory" {
     }
   ]
 
-  ansible_user      = var.ansible_user
-  ansible_password  = var.domain_admin_password
-  domain_name       = var.domain_name
-  domain_netbios    = "CORP"
-  domain_admin_user = "CORP\\${var.ansible_user}"
-  output_path       = "../ansible/inventory/azure_windows.yml"
+  ansible_user     = var.ansible_user
+  ansible_password = var.domain_admin_password
+  domain_name      = var.domain_name
+  domain_netbios   = "CORP"
+  output_path      = "../ansible/inventory/azure_windows.yml"
 
   depends_on = [
     module.azure_domain_controllers,
