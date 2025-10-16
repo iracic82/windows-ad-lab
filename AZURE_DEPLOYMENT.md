@@ -49,6 +49,29 @@ Azure Infrastructure:
 - Network Security Groups (NSGs) with AD-specific rules
 - Public IPs for RDP access
 - Static private IPs for predictable addressing
+- **Automatic resource tagging** for cost tracking and organization
+
+---
+
+## Resource Tagging
+
+All Azure resources are automatically tagged with:
+
+| Tag | Description | Example |
+|-----|-------------|---------|
+| **Project** | Project name | `windows-ad-lab` |
+| **Environment** | Environment type | `dev`, `test`, `prod` |
+| **ManagedBy** | Tool managing resources | `Terraform` |
+| **Creator** | Email of resource creator | `your-email@example.com` |
+
+**Benefits:**
+- **Cost tracking**: Filter Azure Cost Management by tags
+- **Resource organization**: Group resources by project/environment
+- **Ownership**: Track who created resources
+- **Automation**: Identify Terraform-managed resources
+
+**Customization:**
+You can modify tags in `terraform.tfvars.azure` (see Configuration Guide below).
 
 ---
 
@@ -141,6 +164,14 @@ vim terraform.tfvars.azure
 # ===================================
 azure_subscription_id = "12345678-1234-1234-1234-123456789abc"  # From: az account show
 azure_location        = "eastus"  # or westus2, northeurope, etc.
+
+# ===================================
+# Project Configuration
+# ===================================
+project_name = "windows-ad-lab"
+environment  = "dev"           # dev, test, prod
+managed_by   = "Terraform"     # Tool managing resources
+creator      = "your-email@example.com"  # Your email for resource tracking
 
 # ===================================
 # Domain Configuration
