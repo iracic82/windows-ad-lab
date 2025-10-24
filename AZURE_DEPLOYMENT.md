@@ -321,18 +321,60 @@ ansible-playbook -i inventory/azure_windows.yml playbooks/site.yml
 # 3. CLIENT1, CLIENT2, ... join the domain
 ```
 
-### Step 5: Verify Deployment
+### Step 5: Install RSAT Modules (Optional)
+
+If you need to install RSAT (Remote Server Administration Tools) modules for tools like Infoblox Universal DDI Agent, use the dedicated playbook:
+
+```bash
+cd ansible
+
+# Install RSAT modules on all Windows hosts
+export OBJC_DISABLE_INITIALIZE_FORK_SAFETY=YES
+ansible-playbook -i ../terraform/ansible/inventory/azure_windows.yml playbooks/install-rsat.yml
+
+# Or use the helper script
+cd ..
+./run-rsat-install.sh
+
+# What gets installed:
+# - RSAT-AD-PowerShell: Active Directory PowerShell cmdlets
+# - RSAT-DNS-Server: DNS Server management tools
+# - RSAT-DHCP: DHCP Server management tools
+```
+
+**What this does:**
+- Installs RSAT modules on all domain controllers and clients
+- Verifies installation success on each host
+- Shows detailed summary of what was installed vs. already present
+
+**Typical output:**
+```
+PLAY RECAP *********************************************************************
+cl1     : ok=6    changed=1    unreachable=0    failed=0
+cl2     : ok=6    changed=3    unreachable=0    failed=0
+dc1     : ok=6    changed=1    unreachable=0    failed=0
+dc2     : ok=6    changed=1    unreachable=0    failed=0
+```
+
+**Use cases:**
+- Installing Infoblox Universal DDI Agent
+- Remote management from client machines
+- PowerShell-based AD/DNS/DHCP administration
+
+See [RSAT Playbook Documentation](#rsat-remote-server-administration-tools) below for details.
+
+### Step 6: Verify Deployment
 
 ```bash
 # Check domain membership
-ansible windows -i inventory/azure_windows.yml \
+ansible windows -i ../terraform/ansible/inventory/azure_windows.yml \
   -m ansible.windows.win_shell \
   -a "(Get-WmiObject Win32_ComputerSystem).Domain"
 
 # All should return: acme.corp
 ```
 
-### Step 6: RDP Access
+### Step 7: RDP Access
 
 ```bash
 # Get connection info
@@ -619,11 +661,202 @@ Then use Azure Bastion or VPN for access.
 
 ---
 
+## RSAT (Remote Server Administration Tools)
+
+### Overview
+
+The RSAT playbook installs Remote Server Administration Tools on all Windows hosts (domain controllers and clients). These tools provide PowerShell cmdlets and management capabilities for Active Directory, DNS, and DHCP.
+
+**Location:** `ansible/playbooks/install-rsat.yml`
+
+### When to Use
+
+Install RSAT modules when you need:
+- **Infoblox Universal DDI Agent** - Requires RSAT-AD-PowerShell, RSAT-DNS-Server, RSAT-DHCP
+- **Remote management** - Manage AD/DNS/DHCP from client machines
+- **PowerShell automation** - Use AD/DNS/DHCP cmdlets for scripting
+- **Troubleshooting** - Query AD, DNS, or DHCP from any host
+
+### Installed Modules
+
+| Module | Description | Commands Provided |
+|--------|-------------|-------------------|
+| **RSAT-AD-PowerShell** | Active Directory PowerShell cmdlets | `Get-ADUser`, `Get-ADComputer`, `Get-ADGroup`, etc. |
+| **RSAT-DNS-Server** | DNS Server management tools | `Get-DnsServerZone`, `Add-DnsServerResourceRecord`, etc. |
+| **RSAT-DHCP** | DHCP Server management tools | `Get-DhcpServerv4Scope`, `Get-DhcpServerv4Lease`, etc. |
+
+### Installation
+
+**Method 1: Using the dedicated playbook**
+
+```bash
+cd ansible
+export OBJC_DISABLE_INITIALIZE_FORK_SAFETY=YES
+ansible-playbook -i ../terraform/ansible/inventory/azure_windows.yml playbooks/install-rsat.yml
+```
+
+**Method 2: Using the helper script (with logging)**
+
+```bash
+./run-rsat-install.sh
+
+# Monitor from another terminal:
+tail -f ansible/rsat-installation-*.log
+```
+
+### What the Playbook Does
+
+1. **Verifies WinRM connectivity** to all hosts
+2. **Installs RSAT-AD-PowerShell** on all Windows hosts
+3. **Installs RSAT-DNS-Server** on all Windows hosts
+4. **Installs RSAT-DHCP** on all Windows hosts
+5. **Verifies installation** by querying Windows Features
+6. **Displays summary** showing what was installed vs. already present
+
+### Example Output
+
+```
+PLAY [Install RSAT Modules on All Windows Hosts] *******************************
+
+TASK [Verify WinRM connectivity] ***********************************************
+ok: [dc1]
+ok: [dc2]
+ok: [cl1]
+ok: [cl2]
+
+TASK [Install RSAT-AD-PowerShell module] ***************************************
+ok: [dc1]
+ok: [dc2]
+changed: [cl1]
+changed: [cl2]
+
+TASK [Install RSAT-DNS-Server module] ******************************************
+ok: [dc1]
+ok: [dc2]
+changed: [cl1]
+changed: [cl2]
+
+TASK [Install RSAT-DHCP module] ************************************************
+ok: [dc1]
+ok: [dc2]
+changed: [cl1]
+changed: [cl2]
+
+TASK [Verify RSAT modules are installed] ***************************************
+changed: [dc1]
+changed: [dc2]
+changed: [cl1]
+changed: [cl2]
+
+TASK [Display RSAT installation results] ***************************************
+ok: [dc1] => {
+    "msg": [
+        "=== RSAT Installation Summary for dc1 ===",
+        "RSAT-AD-PowerShell: Already Present",
+        "RSAT-DNS-Server: Already Present",
+        "RSAT-DHCP: Already Present",
+        "",
+        "=== Verification Status ===",
+        [
+            "RSAT-AD-PowerShell : True",
+            "RSAT-DNS-Server : True",
+            "RSAT-DHCP : True"
+        ]
+    ]
+}
+
+PLAY RECAP *********************************************************************
+cl1     : ok=6    changed=4    unreachable=0    failed=0
+cl2     : ok=6    changed=4    unreachable=0    failed=0
+dc1     : ok=6    changed=1    unreachable=0    failed=0
+dc2     : ok=6    changed=1    unreachable=0    failed=0
+```
+
+### Verification
+
+Verify RSAT modules are installed on any host:
+
+```bash
+# Using Ansible
+ansible dc1 -i ../terraform/ansible/inventory/azure_windows.yml \
+  -m ansible.windows.win_shell \
+  -a "Get-WindowsFeature RSAT-AD-PowerShell,RSAT-DNS-Server,RSAT-DHCP | Select-Object Name, InstallState"
+
+# Using Azure CLI (from local machine)
+az vm run-command invoke \
+  --resource-group DEMO-ENABLEMENT-RG \
+  --name demo-dc1 \
+  --command-id RunPowerShellScript \
+  --scripts "Get-WindowsFeature RSAT-AD-PowerShell,RSAT-DNS-Server,RSAT-DHCP | Select-Object Name, InstallState"
+```
+
+Expected output:
+```
+Name               InstallState
+----               ------------
+RSAT-AD-PowerShell Installed
+RSAT-DNS-Server    Installed
+RSAT-DHCP          Installed
+```
+
+### Playbook Details
+
+**Location:** `ansible/playbooks/install-rsat.yml`
+
+**Target hosts:** All Windows hosts (group: `windows`)
+- Domain Controllers: dc1, dc2, dc3, ...
+- Clients: cl1, cl2, cl3, ...
+
+**Idempotency:**
+- ✅ Safe to run multiple times
+- ✅ Only installs missing modules
+- ✅ Shows "Already Present" for existing modules
+
+**Execution time:**
+- ~3-5 minutes for 6 hosts
+- DHCP module takes the longest (2-4 minutes per host)
+
+### Files Created
+
+| File | Purpose |
+|------|---------|
+| `ansible/playbooks/install-rsat.yml` | Main RSAT installation playbook |
+| `run-rsat-install.sh` | Helper script with logging |
+| `ansible/rsat-installation-*.log` | Installation logs (created by helper script) |
+
+### Troubleshooting
+
+**Issue: "Feature name RSAT-* is unknown"**
+- RSAT modules require Windows Server 2016 or newer
+- Verify Windows version: `ansible all -m ansible.windows.win_shell -a "Get-ComputerInfo | Select-Object WindowsProductName"`
+
+**Issue: Playbook hangs on DHCP installation**
+- Normal behavior - DHCP module takes 2-4 minutes per host
+- Monitor progress: Check CPU usage on VMs via Azure Portal
+- Wait at least 10 minutes before canceling
+
+**Issue: Installation fails with permission error**
+- Verify you're using domain admin credentials
+- Check inventory file has correct `domain_admin_user` and `domain_admin_password`
+
+### Performance Impact
+
+RSAT modules are lightweight management tools:
+- **Disk space:** ~50 MB per module (~150 MB total)
+- **Memory:** No additional memory usage (only when cmdlets are used)
+- **Performance:** No performance impact on server operations
+- **Services:** No additional services running
+
+Safe to install on all servers without performance concerns.
+
+---
+
 ## Next Steps
 
 - [Main README](README.md) - Project overview
 - [AWS Deployment](terraform/main.tf) - AWS version
 - [Ansible Roles](ansible/roles/) - AD configuration
+- [RSAT Playbook](ansible/playbooks/install-rsat.yml) - RSAT installation
 
 ---
 

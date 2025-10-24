@@ -77,13 +77,16 @@ ansible/roles/
 ├── ad_additional_dc/    # Domain join + promote (DC2, DC3, DC4...)
 └── ad_client/           # Client domain join (all clients)
 
-playbooks/site.yml       # Orchestrator - scales automatically!
+playbooks/
+├── site.yml             # Main orchestrator - scales automatically!
+└── install-rsat.yml     # Install RSAT modules (optional)
 ```
 
 **Architecture Design:**
 - `domain_controllers[0]` creates the AD forest
 - `domain_controllers[1:]` join domain and promote to DCs
 - `windows_clients` join the domain as member servers
+- **Optional:** Install RSAT tools for management/DDI agents
 
 Modifying counts in `terraform.tfvars` automatically scales both infrastructure and configuration.
 

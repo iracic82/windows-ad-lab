@@ -1,0 +1,66 @@
+---
+# ============================================================================
+# RSAT Installation Playbook
+# Installs Remote Server Administration Tools on Windows clients
+# Required for Universal DDI Agent installation
+# ============================================================================
+# Usage: ansible-playbook -i <inventory_file> playbooks/install-rsat.yml
+# ============================================================================
+
+- name: Install RSAT Modules on All Windows Hosts
+  hosts: windows
+  gather_facts: no
+  strategy: linear
+
+  vars:
+    domain_name: acme.corp
+    domain_netbios: CORP
+
+    # WinRM settings
+    ansible_connection: winrm
+    ansible_winrm_transport: ntlm
+    ansible_winrm_server_cert_validation: ignore
+    ansible_winrm_operation_timeout_sec: 60
+    ansible_winrm_read_timeout_sec: 70
+
+  tasks:
+    - name: Verify WinRM connectivity
+      ansible.windows.win_ping:
+
+    - name: Install RSAT-AD-PowerShell module
+      ansible.windows.win_feature:
+        name: RSAT-AD-PowerShell
+        state: present
+      register: rsat_ad_install
+
+    - name: Install RSAT-DNS-Server module
+      ansible.windows.win_feature:
+        name: RSAT-DNS-Server
+        state: present
+      register: rsat_dns_install
+
+    - name: Install RSAT-DHCP module
+      ansible.windows.win_feature:
+        name: RSAT-DHCP
+        state: present
+      register: rsat_dhcp_install
+
+    - name: Verify RSAT modules are installed
+      ansible.windows.win_shell: |
+        $features = @('RSAT-AD-PowerShell', 'RSAT-DNS-Server', 'RSAT-DHCP')
+        foreach ($f in $features) {
+          $status = (Get-WindowsFeature -Name $f).Installed
+          "$f : $status"
+        }
+      register: rsat_verification
+
+    - name: Display RSAT installation results
+      ansible.builtin.debug:
+        msg:
+          - "=== RSAT Installation Summary for {{ inventory_hostname }} ==="
+          - "RSAT-AD-PowerShell: {{ 'Newly Installed' if rsat_ad_install.changed else 'Already Present' }}"
+          - "RSAT-DNS-Server: {{ 'Newly Installed' if rsat_dns_install.changed else 'Already Present' }}"
+          - "RSAT-DHCP: {{ 'Newly Installed' if rsat_dhcp_install.changed else 'Already Present' }}"
+          - ""
+          - "=== Verification Status ==="
+          - "{{ rsat_verification.stdout_lines }}"
