@@ -31,6 +31,10 @@ terraform.rc
 
 # Generated Ansible inventory (optional - remove if you want to commit it)
 ../ansible/inventory/aws_windows.yml
+ansible/inventory/azure_windows.yml
+
+# Cloud-init templates with actual SSH keys (use .example files instead)
+azure/templates/bastion_cloud_init.tpl
 
 # SSH keys
 *.pem

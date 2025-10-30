@@ -83,3 +83,39 @@ allowed_winrm_cidrs = ["YOUR_IP/32"]  # Your public IP for Ansible
 # ===================================
 
 ansible_user = "Administrator"
+
+# ===================================
+# Bastion Host Configuration (Optional)
+# ===================================
+
+# Enable bastion host deployment (Linux jump box in separate Management VNet)
+enable_bastion = false  # Set to true to deploy bastion host
+
+# Existing Management VNet details (REFERENCE ONLY - NO CHANGES WILL BE MADE)
+# The bastion will be deployed into an existing VNet (not created by Terraform)
+management_resource_group_name = "Management"
+management_vnet_name           = "management_vnet"
+management_subnet_name         = "servers"
+
+# Bastion VM configuration
+bastion_vm_name          = "demo-bastion"
+bastion_hostname         = "demo-bastion"
+bastion_vm_size          = "Standard_B2s"  # 2 vCPU, 4GB RAM
+bastion_private_ip       = ""               # Leave empty for dynamic IP
+bastion_admin_username   = "ubuntu"
+bastion_disk_size        = 50
+bastion_create_public_ip = true
+
+# SSH Public Key for bastion authentication (REQUIRED if enable_bastion = true)
+# Replace with your actual SSH public key (not your private key!)
+bastion_ssh_public_key = "ssh-rsa AAAAB3NzaC1yc2EAAA...YOUR_PUBLIC_KEY_HERE... user@hostname"
+
+# Network Security Group for bastion
+bastion_create_nsg       = true
+bastion_allowed_ssh_cidrs = ["0.0.0.0/0"]  # Adjust to restrict SSH access
+
+# Additional tags for bastion resources
+bastion_additional_tags = {
+  Role = "Bastion"
+  Team = "SE"
+}

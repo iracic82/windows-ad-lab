@@ -66,3 +66,36 @@ output "azure_rdp_connection_info" {
   EOT
   sensitive = true
 }
+
+# ============================================================================
+# Bastion Host Outputs
+# ============================================================================
+
+output "bastion_host_info" {
+  description = "Bastion host information"
+  value = var.enable_bastion ? {
+    vm_name     = module.bastion_host[0].vm_name
+    hostname    = module.bastion_host[0].hostname
+    private_ip  = module.bastion_host[0].private_ip
+    public_ip   = module.bastion_host[0].public_ip
+    username    = module.bastion_host[0].admin_username
+    ssh_command = "ssh ${module.bastion_host[0].admin_username}@${module.bastion_host[0].public_ip}"
+  } : null
+}
+
+output "bastion_ssh_connection" {
+  description = "SSH connection command for bastion host"
+  value       = var.enable_bastion ? "ssh ${module.bastion_host[0].admin_username}@${module.bastion_host[0].public_ip}" : "Bastion host not enabled"
+}
+
+output "vnet_peering_status" {
+  description = "VNet peering status"
+  value = var.enable_bastion ? {
+    management_to_dc     = "Enabled"
+    dc_to_management     = "Enabled"
+    management_to_client = "Enabled"
+    client_to_management = "Enabled"
+  } : {
+    status = "VNet peering not enabled (bastion disabled)"
+  }
+}

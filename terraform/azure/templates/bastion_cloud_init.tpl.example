@@ -1,0 +1,125 @@
+#cloud-config
+# ============================================================================
+# Bastion Host Cloud-Init Configuration - EXAMPLE
+# ============================================================================
+# IMPORTANT: Copy this file to bastion_cloud_init.tpl and customize with your
+# actual SSH public keys before deploying!
+# ============================================================================
+
+# Set the hostname of the system
+hostname: ${hostname}
+
+# Update packages
+package_update: true
+package_upgrade: true
+package_reboot_if_required: true
+
+# Install packages
+packages:
+  - apt-transport-https
+  - ca-certificates
+  - curl
+  - gnupg
+  - lsb-release
+  - software-properties-common
+  - git
+  - wget
+  - unzip
+  - python3
+  - python3-pip
+
+# Add custom groups
+groups:
+  - system-admins
+  - niosfiles
+
+# Create users with SSH key authentication and sudo access
+# IMPORTANT: Replace with YOUR actual users and SSH public keys!
+users:
+  - default
+
+  # Example User 1
+  - name: admin-user1
+    groups:
+      - system-admins
+      - niosfiles
+    primary_group: system-admins
+    shell: /bin/bash
+    ssh_authorized_keys:
+      - ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx user1@example.com
+
+  # Example User 2
+  - name: admin-user2
+    groups:
+      - system-admins
+      - niosfiles
+    primary_group: system-admins
+    shell: /bin/bash
+    ssh_authorized_keys:
+      - ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx user2@example.com
+
+  # Add more users as needed following the same pattern
+  # - name: admin-yourname
+  #   groups:
+  #     - system-admins
+  #     - niosfiles
+  #   primary_group: system-admins
+  #   shell: /bin/bash
+  #   ssh_authorized_keys:
+  #     - ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAACAQDxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx yourname@example.com
+
+# Create files
+write_files:
+  # Add a sudoer file with the system-admins group
+  - path: /etc/sudoers.d/91-cloud-init-groups
+    permissions: '0440'
+    owner: root:root
+    encoding: b64
+    # The encoded content is (without quotes):
+    # # All system-admins group members
+    # %system-admins ALL=(ALL:ALL) NOPASSWD:ALL
+    content: |
+      IyBBbGwgc3lzdGVtLWFkbWlucyBncm91cCBtZW1iZXJzCiVzeXN0ZW0tYWRtaW5zIEFMTD0oQUxMOkFMTCkgTk9QQVNTV0Q6QUxMCgo=
+
+  - path: /etc/ssh/sshd_config.d/91-cloud-init.conf
+    permissions: '0644'
+    content: |
+      # Allow only specific users to log in via SSH
+      # Update this list to match your users above
+      AllowUsers ubuntu admin-user1 admin-user2
+
+runcmd:
+  # Configure cron.allow
+  - chown root:crontab /etc/cron.allow
+  - echo "root" >> /etc/cron.allow
+  - echo "admin-user1" >> /etc/cron.allow
+  - echo "admin-user2" >> /etc/cron.allow
+
+  # Restart SSH service to apply changes
+  - systemctl restart sshd
+
+  # Install Docker
+  - curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg
+  - echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null
+  - apt-get update
+  - apt-get install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin
+  - systemctl enable docker
+  - systemctl start docker
+  - usermod -aG docker admin-user1
+  - usermod -aG docker admin-user2
+
+  # Install Ansible
+  - apt-add-repository --yes --update ppa:ansible/ansible
+  - apt-get install -y ansible
+
+  # Install Terraform
+  - wget -O- https://apt.releases.hashicorp.com/gpg | gpg --dearmor -o /usr/share/keyrings/hashicorp-archive-keyring.gpg
+  - echo "deb [signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] https://apt.releases.hashicorp.com $(lsb_release -cs) main" | tee /etc/apt/sources.list.d/hashicorp.list
+  - apt-get update
+  - apt-get install -y terraform
+
+  # Install Azure CLI
+  - curl -sL https://aka.ms/InstallAzureCLIDeb | bash
+
+# Final message
+final_message: "Bastion host setup complete! System ready after $UPTIME seconds"

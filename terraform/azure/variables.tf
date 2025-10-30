@@ -238,3 +238,97 @@ variable "azure_windows_sku" {
   type        = string
   default     = "2022-datacenter-g2"
 }
+
+# ===================================
+# Bastion Host Configuration
+# ===================================
+
+variable "enable_bastion" {
+  description = "Enable bastion host deployment"
+  type        = bool
+  default     = false
+}
+
+variable "management_resource_group_name" {
+  description = "Name of the existing Management resource group"
+  type        = string
+  default     = "Management"
+}
+
+variable "management_vnet_name" {
+  description = "Name of the existing Management VNet"
+  type        = string
+  default     = "management_vnet"
+}
+
+variable "management_subnet_name" {
+  description = "Name of the subnet in Management VNet for bastion host"
+  type        = string
+  default     = "servers"
+}
+
+variable "bastion_vm_name" {
+  description = "Name of the bastion host VM"
+  type        = string
+  default     = "demo-bastion"
+}
+
+variable "bastion_hostname" {
+  description = "Hostname for the bastion host"
+  type        = string
+  default     = "demo-bastion"
+}
+
+variable "bastion_vm_size" {
+  description = "Azure VM size for bastion host"
+  type        = string
+  default     = "Standard_B2s"
+}
+
+variable "bastion_private_ip" {
+  description = "Static private IP for bastion host (leave empty for dynamic)"
+  type        = string
+  default     = ""
+}
+
+variable "bastion_admin_username" {
+  description = "Admin username for bastion host"
+  type        = string
+  default     = "azureadmin"
+}
+
+variable "bastion_ssh_public_key" {
+  description = "SSH public key for bastion host authentication"
+  type        = string
+  default     = ""
+}
+
+variable "bastion_disk_size" {
+  description = "OS disk size in GB for bastion host"
+  type        = number
+  default     = 50
+}
+
+variable "bastion_create_public_ip" {
+  description = "Create public IP for bastion host"
+  type        = bool
+  default     = true
+}
+
+variable "bastion_additional_tags" {
+  description = "Additional tags for bastion host resources"
+  type        = map(string)
+  default     = {}
+}
+
+variable "bastion_create_nsg" {
+  description = "Create Network Security Group for bastion host"
+  type        = bool
+  default     = true
+}
+
+variable "bastion_allowed_ssh_cidrs" {
+  description = "List of CIDR blocks allowed to SSH into bastion host"
+  type        = list(string)
+  default     = ["0.0.0.0/0"]
+}

@@ -202,3 +202,127 @@ module "azure_ansible_inventory" {
     module.azure_clients
   ]
 }
+
+# ============================================================================
+# Data Sources - Reference Existing Management VNet (NO CHANGES TO IT!)
+# ============================================================================
+
+data "azurerm_virtual_network" "management_vnet" {
+  count               = var.enable_bastion ? 1 : 0
+  name                = var.management_vnet_name
+  resource_group_name = var.management_resource_group_name
+}
+
+data "azurerm_subnet" "management_subnet" {
+  count                = var.enable_bastion ? 1 : 0
+  name                 = var.management_subnet_name
+  virtual_network_name = var.management_vnet_name
+  resource_group_name  = var.management_resource_group_name
+}
+
+# ============================================================================
+# VNet Peering - Connect Management VNet to DC and Client VNets
+# ============================================================================
+
+# Peering: Management VNet -> DC VNet
+resource "azurerm_virtual_network_peering" "management_to_dc" {
+  count                     = var.enable_bastion ? 1 : 0
+  name                      = "${var.management_vnet_name}-to-${module.azure_networking.dc_vnet_name}"
+  resource_group_name       = var.management_resource_group_name
+  virtual_network_name      = var.management_vnet_name
+  remote_virtual_network_id = module.azure_networking.dc_vnet_id
+
+  allow_virtual_network_access = true
+  allow_forwarded_traffic      = true
+  allow_gateway_transit        = false
+}
+
+# Peering: DC VNet -> Management VNet
+resource "azurerm_virtual_network_peering" "dc_to_management" {
+  count                     = var.enable_bastion ? 1 : 0
+  name                      = "${module.azure_networking.dc_vnet_name}-to-${var.management_vnet_name}"
+  resource_group_name       = azurerm_resource_group.main.name
+  virtual_network_name      = module.azure_networking.dc_vnet_name
+  remote_virtual_network_id = data.azurerm_virtual_network.management_vnet[0].id
+
+  allow_virtual_network_access = true
+  allow_forwarded_traffic      = true
+  allow_gateway_transit        = false
+
+  depends_on = [module.azure_networking]
+}
+
+# Peering: Management VNet -> Client VNet
+resource "azurerm_virtual_network_peering" "management_to_client" {
+  count                     = var.enable_bastion ? 1 : 0
+  name                      = "${var.management_vnet_name}-to-${module.azure_networking.client_vnet_name}"
+  resource_group_name       = var.management_resource_group_name
+  virtual_network_name      = var.management_vnet_name
+  remote_virtual_network_id = module.azure_networking.client_vnet_id
+
+  allow_virtual_network_access = true
+  allow_forwarded_traffic      = true
+  allow_gateway_transit        = false
+}
+
+# Peering: Client VNet -> Management VNet
+resource "azurerm_virtual_network_peering" "client_to_management" {
+  count                     = var.enable_bastion ? 1 : 0
+  name                      = "${module.azure_networking.client_vnet_name}-to-${var.management_vnet_name}"
+  resource_group_name       = azurerm_resource_group.main.name
+  virtual_network_name      = module.azure_networking.client_vnet_name
+  remote_virtual_network_id = data.azurerm_virtual_network.management_vnet[0].id
+
+  allow_virtual_network_access = true
+  allow_forwarded_traffic      = true
+  allow_gateway_transit        = false
+
+  depends_on = [module.azure_networking]
+}
+
+# ============================================================================
+# Bastion Host - Linux VM in Management VNet
+# ============================================================================
+
+module "bastion_host" {
+  count  = var.enable_bastion ? 1 : 0
+  source = "./modules/azure-linux-vm"
+
+  name                = var.bastion_vm_name
+  hostname            = var.bastion_hostname
+  role                = "bastion"
+  location            = var.azure_location
+  resource_group_name = var.management_resource_group_name
+  vm_size             = var.bastion_vm_size
+  subnet_id           = data.azurerm_subnet.management_subnet[0].id
+  private_ip          = var.bastion_private_ip
+  admin_username      = var.bastion_admin_username
+  ssh_public_key      = var.bastion_ssh_public_key
+  os_disk_size        = var.bastion_disk_size
+  os_disk_type        = "Premium_LRS"
+  create_public_ip    = var.bastion_create_public_ip
+
+  # Network Security Group
+  create_nsg         = var.bastion_create_nsg
+  allowed_ssh_cidrs  = var.bastion_allowed_ssh_cidrs
+
+  # Ubuntu 22.04 LTS
+  image_publisher = "Canonical"
+  image_offer     = "0001-com-ubuntu-server-jammy"
+  image_sku       = "22_04-lts-gen2"
+  image_version   = "latest"
+
+  # Cloud-init configuration
+  cloud_init_data = templatefile("${path.root}/templates/bastion_cloud_init.tpl", {
+    hostname = var.bastion_hostname
+  })
+
+  common_tags = merge(
+    local.common_tags,
+    var.bastion_additional_tags
+  )
+
+  depends_on = [
+    data.azurerm_subnet.management_subnet
+  ]
+}
